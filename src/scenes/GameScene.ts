@@ -377,12 +377,11 @@ export class GameScene extends Phaser.Scene {
     if (destroyed) {
       // Add resources based on asteroid type
       const resourceAmount = this.miningTarget.getResourceAmount();
-      const resources = this.resourceManager.getResources();
       
       if (this.miningTarget.getType() === AsteroidType.METAL) {
         // Metal asteroid: gives full metal amount and 30% of that as crystal
-        resources.metal += resourceAmount;
-        resources.crystal += Math.floor(resourceAmount * 0.3);
+        this.resourceManager.addResource('metal', resourceAmount);
+        this.resourceManager.addResource('crystal', Math.floor(resourceAmount * 0.3));
         
         // Show resource gain feedback
         this.createFloatingText(`+${resourceAmount}`, 0xaaaaaa, '+metal');
@@ -393,8 +392,8 @@ export class GameScene extends Phaser.Scene {
         this.cameras.main.flash(300, 0, 0, 255);
       } else {
         // Crystal asteroid: gives full crystal amount and 30% of that as metal
-        resources.crystal += resourceAmount;
-        resources.metal += Math.floor(resourceAmount * 0.3);
+        this.resourceManager.addResource('crystal', resourceAmount);
+        this.resourceManager.addResource('metal', Math.floor(resourceAmount * 0.3));
         
         // Show resource gain feedback
         this.createFloatingText(`+${resourceAmount}`, 0x9c5ab8, '+crystal');

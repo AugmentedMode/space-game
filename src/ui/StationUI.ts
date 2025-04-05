@@ -15,6 +15,7 @@ export class StationUI {
   private resourcesPanel: ResourcesPanel;
   private upgradesPanel: UpgradesPanel;
   private minimapPanel: MinimapPanel;
+  private saveManagementPanel: Phaser.GameObjects.Container;
   
   // State
   private visible: boolean = false;
@@ -52,8 +53,11 @@ export class StationUI {
     this.upgradesPanel = new UpgradesPanel(scene, this.uiManager, resourceManager, 400, 100);
     this.minimapPanel = new MinimapPanel(scene, this.uiManager, this.scene.cameras.main.width - 220, 100);
     
+    // Create save management panel
+    this.saveManagementPanel = this.createSaveManagementPanel();
+    
     // Add all elements to container
-    this.container.add([overlay, terminalBg, header]);
+    this.container.add([overlay, terminalBg, header, this.saveManagementPanel]);
     
     // The panel objects will expose their containers
     if (this.resourcesPanel.container) {
@@ -280,5 +284,137 @@ export class StationUI {
   
   destroy() {
     this.container.destroy();
+  }
+  
+  /**
+   * Creates a panel with save/load/reset game options
+   */
+  private createSaveManagementPanel(): Phaser.GameObjects.Container {
+    const container = this.scene.add.container(40, this.scene.cameras.main.height - 120);
+    
+    // Create panel background
+    const panel = this.uiManager.createPanel(0, 0, 320, 80, UITheme.BACKGROUND_LIGHT);
+    container.add(panel);
+    
+    // Panel title
+    const title = this.uiManager.createText('SAVE MANAGEMENT', UIConstants.FONT_SIZE.MEDIUM);
+    title.setPosition(160, 15);
+    container.add(title);
+    
+    // Save button
+    const saveButton = this.uiManager.createButton('SAVE GAME', 120, 30, () => {
+      this.resourceManager.saveGame();
+      this.showSaveNotification('Game saved successfully!');
+    });
+    saveButton.setPosition(80, 50);
+    container.add(saveButton);
+    
+    // Reset button
+    const resetButton = this.uiManager.createButton('RESET GAME', 120, 30, () => {
+      // Show confirmation dialog
+      this.showResetConfirmation();
+    });
+    resetButton.setPosition(240, 50);
+    container.add(resetButton);
+    
+    return container;
+  }
+  
+  /**
+   * Shows a temporary notification when game is saved
+   */
+  private showSaveNotification(message: string): void {
+    const notification = this.scene.add.container(this.scene.cameras.main.width / 2, 100);
+    this.container.add(notification);
+    
+    // Background
+    const bg = this.scene.add.rectangle(0, 0, 300, 50, UITheme.ACCENT, 0.9);
+    bg.setStrokeStyle(1, UITheme.TEXT_PRIMARY);
+    notification.add(bg);
+    
+    // Message text
+    const text = this.uiManager.createText(message, UIConstants.FONT_SIZE.MEDIUM);
+    text.setPosition(0, 0);
+    notification.add(text);
+    
+    // Animation
+    notification.setAlpha(0);
+    this.scene.tweens.add({
+      targets: notification,
+      alpha: 1,
+      y: 80,
+      duration: 300,
+      ease: 'Power2',
+      onComplete: () => {
+        this.scene.time.delayedCall(1500, () => {
+          this.scene.tweens.add({
+            targets: notification,
+            alpha: 0,
+            y: 60,
+            duration: 300,
+            ease: 'Power2',
+            onComplete: () => {
+              notification.destroy();
+            }
+          });
+        });
+      }
+    });
+  }
+  
+  /**
+   * Shows a confirmation dialog before resetting the game
+   */
+  private showResetConfirmation(): void {
+    const dialog = this.scene.add.container(this.scene.cameras.main.width / 2, this.scene.cameras.main.height / 2);
+    this.container.add(dialog);
+    
+    // Darken background
+    const overlay = this.scene.add.rectangle(
+      0, 0,
+      400, 200,
+      UITheme.BACKGROUND_DARK, 0.95
+    );
+    overlay.setStrokeStyle(2, UITheme.ACCENT);
+    dialog.add(overlay);
+    
+    // Warning text
+    const title = this.uiManager.createText('WARNING', UIConstants.FONT_SIZE.MEDIUM);
+    title.setPosition(0, -70);
+    dialog.add(title);
+    
+    const text = this.uiManager.createText(
+      'This will reset all progress.\nAre you sure you want to continue?', 
+      UIConstants.FONT_SIZE.SMALL
+    );
+    text.setPosition(0, -30);
+    dialog.add(text);
+    
+    // Confirm button
+    const confirmButton = this.uiManager.createButton('YES, RESET', 120, 30, () => {
+      this.resourceManager.resetGame();
+      dialog.destroy();
+      this.showSaveNotification('Game has been reset');
+    });
+    confirmButton.setPosition(-70, 40);
+    dialog.add(confirmButton);
+    
+    // Cancel button
+    const cancelButton = this.uiManager.createButton('CANCEL', 120, 30, () => {
+      dialog.destroy();
+    });
+    cancelButton.setPosition(70, 40);
+    dialog.add(cancelButton);
+    
+    // Animation
+    dialog.setScale(0.8);
+    dialog.setAlpha(0);
+    this.scene.tweens.add({
+      targets: dialog,
+      alpha: 1,
+      scale: 1,
+      duration: 200,
+      ease: 'Back.easeOut'
+    });
   }
 } 

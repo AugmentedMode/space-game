@@ -282,6 +282,9 @@ export class ResourceManager {
     }
   ];
 
+  private autosaveInterval: number = 30000; // Save every 30 seconds
+  private lastSaveTime: number = 0;
+
   constructor() {
     // Initialize resources
     this.resources = {
@@ -297,6 +300,9 @@ export class ResourceManager {
       miningSpeed: 1, // Default mining speed
       miningPower: 1 // Default mining power
     };
+
+    // Try to load saved game data
+    this.loadGame();
   }
 
   update(deltaTime: number): void {
@@ -306,6 +312,122 @@ export class ResourceManager {
     // Update resources based on rates and time passed
     this.resources.metal += this.rates.metalRate * deltaSeconds;
     this.resources.crystal += this.rates.crystalRate * deltaSeconds;
+
+    // Handle autosave
+    this.lastSaveTime += deltaTime;
+    if (this.lastSaveTime >= this.autosaveInterval) {
+      this.saveGame();
+      this.lastSaveTime = 0;
+    }
+  }
+
+  /**
+   * Save game data to localStorage
+   */
+  saveGame(): void {
+    try {
+      const saveData = {
+        resources: this.resources,
+        rates: this.rates,
+        playerStats: this.playerStats,
+        upgrades: this.upgrades.map(upgrade => ({
+          id: upgrade.id,
+          purchased: upgrade.purchased
+        }))
+      };
+      
+      localStorage.setItem('idleGameSave', JSON.stringify(saveData));
+      console.log('Game saved successfully');
+    } catch (error) {
+      console.error('Failed to save game:', error);
+    }
+  }
+
+  /**
+   * Load game data from localStorage
+   */
+  loadGame(): void {
+    try {
+      const savedData = localStorage.getItem('idleGameSave');
+      
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        
+        // Restore resources
+        if (parsedData.resources) {
+          this.resources = parsedData.resources;
+        }
+        
+        // Restore rates
+        if (parsedData.rates) {
+          this.rates = parsedData.rates;
+        }
+        
+        // Restore player stats
+        if (parsedData.playerStats) {
+          this.playerStats = parsedData.playerStats;
+        }
+        
+        // Restore upgrades purchased status
+        if (parsedData.upgrades) {
+          // For each saved upgrade, find the matching upgrade and set its purchased status
+          parsedData.upgrades.forEach((savedUpgrade: {id: string, purchased: boolean}) => {
+            const upgrade = this.upgrades.find(u => u.id === savedUpgrade.id);
+            if (upgrade) {
+              upgrade.purchased = savedUpgrade.purchased;
+              
+              // Re-apply the effect if it was purchased
+              if (savedUpgrade.purchased) {
+                upgrade.effect(this.resources, this.rates, this.playerStats);
+              }
+            }
+          });
+        }
+        
+        console.log('Game loaded successfully');
+      } else {
+        console.log('No saved game found, starting new game');
+      }
+    } catch (error) {
+      console.error('Failed to load game:', error);
+    }
+  }
+
+  /**
+   * Reset game data (clear save)
+   */
+  resetGame(): void {
+    try {
+      localStorage.removeItem('idleGameSave');
+      
+      // Reset to default values
+      this.resources = {
+        metal: 0,
+        crystal: 0
+      };
+      
+      this.rates = {
+        metalRate: 0.5,
+        crystalRate: 0.2
+      };
+      
+      this.playerStats = {
+        shipSpeed: 200,
+        collectionRadius: 0,
+        autoCollectChance: 0,
+        miningSpeed: 1,
+        miningPower: 1
+      };
+      
+      // Reset all upgrades to not purchased
+      this.upgrades.forEach(upgrade => {
+        upgrade.purchased = false;
+      });
+      
+      console.log('Game reset successfully');
+    } catch (error) {
+      console.error('Failed to reset game:', error);
+    }
   }
 
   getResources(): Resources {
@@ -318,6 +440,17 @@ export class ResourceManager {
   
   getPlayerStats(): PlayerStats {
     return { ...this.playerStats };
+  }
+
+  /**
+   * Adds the specified amount to a resource
+   * @param resourceType The resource type ('metal' or 'crystal')
+   * @param amount The amount to add
+   */
+  addResource(resourceType: keyof Resources, amount: number): void {
+    if (resourceType in this.resources) {
+      this.resources[resourceType] += amount;
+    }
   }
 
   getUpgrades(): ShipUpgrade[] {
