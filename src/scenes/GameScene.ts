@@ -380,16 +380,80 @@ export class GameScene extends Phaser.Scene {
       const resources = this.resourceManager.getResources();
       
       if (this.miningTarget.getType() === AsteroidType.METAL) {
+        // Metal asteroid: gives full metal amount and 30% of that as crystal
         resources.metal += resourceAmount;
+        resources.crystal += Math.floor(resourceAmount * 0.3);
+        
+        // Show resource gain feedback
+        this.createFloatingText(`+${resourceAmount}`, 0xaaaaaa, '+metal');
+        if (Math.floor(resourceAmount * 0.3) > 0) {
+          this.createFloatingText(`+${Math.floor(resourceAmount * 0.3)}`, 0x9c5ab8, '+crystal', 30);
+        }
+        
         this.cameras.main.flash(300, 0, 0, 255);
       } else {
+        // Crystal asteroid: gives full crystal amount and 30% of that as metal
         resources.crystal += resourceAmount;
+        resources.metal += Math.floor(resourceAmount * 0.3);
+        
+        // Show resource gain feedback
+        this.createFloatingText(`+${resourceAmount}`, 0x9c5ab8, '+crystal');
+        if (Math.floor(resourceAmount * 0.3) > 0) {
+          this.createFloatingText(`+${Math.floor(resourceAmount * 0.3)}`, 0xaaaaaa, '+metal', 30);
+        }
+        
         this.cameras.main.flash(300, 255, 0, 0);
       }
       
       // Stop mining since the asteroid is destroyed
       this.stopMining();
     }
+  }
+
+  /**
+   * Creates animated floating text that appears above the ship
+   * @param text The text to display
+   * @param color The color of the text
+   * @param prefix Optional prefix text (like "+metal")
+   * @param yOffset Optional vertical offset for staggered text
+   */
+  private createFloatingText(text: string, color: number, prefix: string = '', yOffset: number = 0) {
+    // Position the text above the ship
+    const floatingText = this.add.text(
+      this.ship.x,
+      this.ship.y - 50 - yOffset,
+      prefix ? `${text} ${prefix}` : text,
+      { 
+        fontSize: '20px', 
+        color: `#${color.toString(16)}`,
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2,
+        shadow: { offsetX: 1, offsetY: 1, color: '#000', blur: 2, stroke: true, fill: true }
+      }
+    ).setOrigin(0.5);
+    
+    // Add scale effect
+    this.tweens.add({
+      targets: floatingText,
+      scaleX: 1.3,
+      scaleY: 1.3,
+      duration: 100,
+      yoyo: true,
+      ease: 'Power2'
+    });
+    
+    // Animate the text floating upward and fading out
+    this.tweens.add({
+      targets: floatingText,
+      y: floatingText.y - 80,
+      alpha: 0,
+      duration: 1500,
+      ease: 'Power2',
+      onComplete: () => {
+        floatingText.destroy();
+      }
+    });
   }
 
   private updateMiningBeam() {

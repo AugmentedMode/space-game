@@ -32,17 +32,21 @@ export class AsteroidBeltManager {
   }
   
   private populateBelt(config: AsteroidBeltConfig): void {
-    // Calculate number of asteroids based on area and density
-    const area = config.width * config.height;
-    const numAsteroids = Math.floor(area * config.density / 100000); // Adjust as needed
+    // Always create exactly 10 asteroids per belt
+    const numAsteroids = 10;
+    let asteroidsCreated = 0;
     
-    for (let i = 0; i < numAsteroids; i++) {
+    // Try to place all 10 asteroids with a maximum number of attempts
+    let maxAttempts = 100;
+    
+    while (asteroidsCreated < numAsteroids && maxAttempts > 0) {
       // Generate random position within the belt area
       const x = Phaser.Math.Between(config.x, config.x + config.width);
       const y = Phaser.Math.Between(config.y, config.y + config.height);
       
       // Don't place asteroids too close to each other
       if (this.isTooCloseToOtherAsteroids(x, y)) {
+        maxAttempts--;
         continue;
       }
       
@@ -54,6 +58,22 @@ export class AsteroidBeltManager {
       // Create asteroid and add to group
       const asteroid = new Asteroid(this.scene, x, y, type);
       this.asteroids.add(asteroid);
+      asteroidsCreated++;
+    }
+    
+    // If we couldn't place all asteroids with proper spacing, force placement for the remaining ones
+    if (asteroidsCreated < numAsteroids) {
+      for (let i = asteroidsCreated; i < numAsteroids; i++) {
+        const x = Phaser.Math.Between(config.x, config.x + config.width);
+        const y = Phaser.Math.Between(config.y, config.y + config.height);
+        
+        const type = Math.random() < 0.8 
+          ? config.type 
+          : (config.type === AsteroidType.METAL ? AsteroidType.CRYSTAL : AsteroidType.METAL);
+        
+        const asteroid = new Asteroid(this.scene, x, y, type);
+        this.asteroids.add(asteroid);
+      }
     }
   }
   
