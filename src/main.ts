@@ -4,6 +4,7 @@ import { GameScene } from './scenes/GameScene';
 import { UIScene } from './scenes/UIScene';
 import { StationInteriorScene } from './scenes/StationInteriorScene';
 import { TransitionLoadingScene } from './scenes/TransitionLoadingScene';
+import { PlanetSurfaceScene } from './scenes/PlanetSurfaceScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -22,7 +23,8 @@ const config: Phaser.Types.Core.GameConfig = {
     GameScene, 
     UIScene, 
     StationInteriorScene, 
-    TransitionLoadingScene
+    TransitionLoadingScene,
+    PlanetSurfaceScene
   ],
   backgroundColor: '#000000',
   render: {

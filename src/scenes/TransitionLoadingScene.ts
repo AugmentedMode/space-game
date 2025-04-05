@@ -2,13 +2,24 @@ import Phaser from 'phaser';
 
 export class TransitionLoadingScene extends Phaser.Scene {
   private nextScene: string = '';
+  private sceneData: any = {};
   
   constructor() {
     super('loading-transition');
   }
   
-  init(data: { nextScene: string }) {
+  init(data: { 
+    nextScene: string;
+    planetType?: string;
+    planetName?: string;
+  }) {
     this.nextScene = data.nextScene;
+    
+    // Store any additional data to pass to the next scene
+    this.sceneData = {
+      planetType: data.planetType,
+      planetName: data.planetName
+    };
   }
   
   create() {
@@ -80,10 +91,10 @@ export class TransitionLoadingScene extends Phaser.Scene {
     // Add some additional delay for effect
     this.time.delayedCall(500, () => {
       // Pass any needed data to the next scene
-      const sceneData: any = {};
+      const sceneData: any = { ...this.sceneData };
       
-      // If we're transitioning to the station, pass the resource manager
-      if (this.nextScene === 'station-interior') {
+      // If we're transitioning to the station or planet, pass the resource manager
+      if (this.nextScene === 'station-interior' || this.nextScene === 'planet-surface') {
         const gameScene = this.scene.get('game');
         if (gameScene && typeof (gameScene as any).getResourceManager === 'function') {
           sceneData.resourceManager = (gameScene as any).getResourceManager();

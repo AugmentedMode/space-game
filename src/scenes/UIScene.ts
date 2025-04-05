@@ -39,7 +39,7 @@ export class UIScene extends Phaser.Scene {
     });
     
     // Add keypress handler for ESC key to close UI elements
-    this.input.keyboard.on('keydown-ESC', () => {
+    this.input.keyboard?.on('keydown-ESC', () => {
       if (this.stationUI && this.stationUI.isVisible()) {
         this.hideUI();
       } else if (this.planetDialog) {

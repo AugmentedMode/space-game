@@ -427,4 +427,9 @@ export class GameScene extends Phaser.Scene {
   public getResourceManager(): ResourceManager {
     return this.resourceManager;
   }
+
+  // Add a getter to expose the player ship to other components
+  public getPlayerShip(): Phaser.Physics.Arcade.Sprite {
+    return this.ship;
+  }
 } 
