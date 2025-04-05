@@ -16,12 +16,12 @@ export class GameScene extends Phaser.Scene {
   private spaceStation!: SpaceStation;
   private asteroidBeltManager!: AsteroidBeltManager;
   private miningActive: boolean = false;
-  private miningTarget: Asteroid | null = null;
+  private miningTargets: Asteroid[] = []; // Changed to array for multiple targets
   private miningBeam: Phaser.GameObjects.Graphics | null = null;
   private miningTimer: Phaser.Time.TimerEvent | null = null;
   private miningKey!: Phaser.Input.Keyboard.Key;
-  private nearbyAsteroid: Asteroid | null = null;
-  private miningRange: number = 150;
+  private nearbyAsteroids: Asteroid[] = []; // Changed to array for multiple targets
+  private attackRangeIndicator: Phaser.GameObjects.Graphics | null = null; // New attack range indicator
   private miningText: Phaser.GameObjects.Text | null = null;
 
   constructor() {
@@ -125,11 +125,11 @@ export class GameScene extends Phaser.Scene {
     // Create mining beam graphics
     this.miningBeam = this.add.graphics();
     
-    // Add collision detection between ship and asteroids
-    this.physics.add.overlap(
+    // We no longer need the overlap for proximity detection as we're checking distances directly
+    this.physics.add.collider(
       this.ship,
       this.asteroidBeltManager.getAsteroids(),
-      this.handleAsteroidProximity,
+      this.handleShipAsteroidCollision,
       undefined,
       this
     );
@@ -137,6 +137,9 @@ export class GameScene extends Phaser.Scene {
     // Create magnetic field visual (for collection radius upgrade)
     this.magnetField = this.add.graphics();
     this.updateMagneticField();
+    
+    // Initialize the attack system
+    this.initializeAttackSystem();
     
     // Start UI scene but don't show its container
     // The UI will be shown when interacting with the space station
@@ -155,11 +158,14 @@ export class GameScene extends Phaser.Scene {
     // Handle keyboard movement
     this.handleShipMovement();
     
+    // Update attack range indicator - ensure this runs every frame
+    this.updateAttackRangeIndicator();
+    
     // Check for mining input
     this.handleMiningInput();
     
     // Update mining beam if active
-    if (this.miningActive && this.miningTarget && this.miningBeam) {
+    if (this.miningActive && this.miningTargets.length > 0 && this.miningBeam) {
       this.updateMiningBeam();
     } else if (this.miningBeam) {
       this.miningBeam.clear();
@@ -177,8 +183,8 @@ export class GameScene extends Phaser.Scene {
       uiScene.updateMinimap();
     }
     
-    // Show mining indicator when near an asteroid
-    this.updateNearbyAsteroidIndicator();
+    // Update nearby asteroids
+    this.updateNearbyAsteroids();
   }
 
   private createAnimations() {
@@ -261,88 +267,223 @@ export class GameScene extends Phaser.Scene {
     this.asteroidBeltManager.createBeltVisuals();
   }
 
-  private handleAsteroidProximity(_ship: any, asteroid: any) {
-    // Set the nearby asteroid for mining if within range
-    const distance = Phaser.Math.Distance.Between(
-      this.ship.x, this.ship.y,
-      asteroid.x, asteroid.y
+  private handleShipAsteroidCollision(
+    shipObj: any, 
+    asteroidObj: any
+  ) {
+    // Handle any collision effects (e.g., damage to ship, bounce effect, etc.)
+    // For now we'll just implement a simple bounce
+    const ship = shipObj as Phaser.Physics.Arcade.Sprite;
+    const asteroid = asteroidObj as Asteroid;
+    
+    // Calculate bounce direction
+    const angle = Phaser.Math.Angle.Between(
+        asteroid.x, asteroid.y,
+        ship.x, ship.y
     );
     
-    if (distance <= this.miningRange) {
-      this.nearbyAsteroid = asteroid as Asteroid;
+    // Apply a small push to the ship
+    const pushForce = 50;
+    ship.setVelocity(
+        Math.cos(angle) * pushForce,
+        Math.sin(angle) * pushForce
+    );
+  }
+
+  private updateNearbyAsteroids() {
+    const playerStats = this.resourceManager.getPlayerStats();
+    let attackRange = playerStats.attackRange;
+    
+    // Use a reasonable fallback value if needed
+    if (attackRange <= 0) {
+        attackRange = 200;
+        this.resourceManager.setPlayerStat('attackRange', attackRange);
+    }
+    
+    // Clear current nearby asteroids list
+    this.nearbyAsteroids = [];
+    
+    // Get all asteroids from the group
+    const asteroids = this.asteroidBeltManager.getAsteroids().getChildren() as Asteroid[];
+    
+    // Check each asteroid for distance
+    asteroids.forEach(asteroid => {
+        const distance = Phaser.Math.Distance.Between(
+            this.ship.x, this.ship.y,
+            asteroid.x, asteroid.y
+        );
+        
+        // Add to nearby list if within range
+        if (distance <= attackRange) {
+            this.nearbyAsteroids.push(asteroid);
+        }
+    });
+    
+    // Debug - highlight all nearby asteroids
+    if (this.nearbyAsteroids.length > 0) {
+        console.log(`Found ${this.nearbyAsteroids.length} asteroids in range of ${attackRange}px`);
+    }
+    
+    // Show mining indicator if there are asteroids in range
+    this.updateNearbyAsteroidIndicator();
+  }
+
+  private updateAttackRangeIndicator() {
+    // Get player stats for attack range
+    const playerStats = this.resourceManager.getPlayerStats();
+    let attackRange = playerStats.attackRange;
+    
+    // Ensure we have a reasonable range value - use fallback if needed
+    if (attackRange <= 0) {
+        console.warn('Attack range is zero or negative:', attackRange);
+        attackRange = 200; // Larger fallback value for better visibility
+        
+        // Try to fix the value in the resource manager
+        this.resourceManager.setPlayerStat('attackRange', attackRange);
+    }
+    
+    // Create attack range indicator if it doesn't exist
+    if (!this.attackRangeIndicator) {
+        this.attackRangeIndicator = this.add.graphics();
+        this.attackRangeIndicator.setDepth(100); // Make sure it's visible above other elements
+    }
+    
+    // Make sure attackRangeIndicator is not null before using it
+    if (!this.attackRangeIndicator) return;
+    
+    // Update the indicator with a more noticeable style
+    this.attackRangeIndicator.clear();
+    
+    // Add a filled circle with low opacity
+    this.attackRangeIndicator.fillStyle(0xff0000, 0.15);
+    this.attackRangeIndicator.fillCircle(this.ship.x, this.ship.y, attackRange);
+    
+    // Add a stroke with higher opacity
+    this.attackRangeIndicator.lineStyle(4, 0xff0000, 0.8);
+    this.attackRangeIndicator.strokeCircle(this.ship.x, this.ship.y, attackRange);
+    
+    // Add cardinal direction markers at the circle edge for better visibility
+    const directions = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI, 5*Math.PI/4, 3*Math.PI/2, 7*Math.PI/4];
+    directions.forEach(angle => {
+        const x = this.ship.x + Math.cos(angle) * attackRange;
+        const y = this.ship.y + Math.sin(angle) * attackRange;
+        
+        if (this.attackRangeIndicator) {
+            this.attackRangeIndicator.fillStyle(0xff0000, 0.9);
+            this.attackRangeIndicator.fillCircle(x, y, 6);
+        }
+    });
+    
+    // Add some debug text to show the range value
+    if (this.miningText && !this.miningActive) {
+        const debugText = `Attack Range: ${attackRange}px`;
+        this.miningText.setText(this.miningText.text + '\n' + debugText);
+    }
+    
+    // Print debug info to console at a reduced frequency
+    if (Math.random() < 0.01) { // Only log ~1% of the time to avoid console spam
+        console.log(`Attack range indicator updated: ${attackRange}px at (${this.ship.x}, ${this.ship.y})`);
     }
   }
 
   private updateNearbyAsteroidIndicator() {
-    // Clear current nearby asteroid if it's too far
-    if (this.nearbyAsteroid) {
-      const distance = Phaser.Math.Distance.Between(
-        this.ship.x, this.ship.y,
-        this.nearbyAsteroid.x, this.nearbyAsteroid.y
-      );
-      
-      if (distance > this.miningRange) {
-        this.nearbyAsteroid = null;
-      }
-    }
-    
     // Add some visual indicator if near an asteroid
-    if (this.nearbyAsteroid && !this.miningActive) {
-      // Show a "press SPACE to mine" tooltip or highlight the asteroid
-      const text = 'Press SPACE to mine';
-      
-      // Add or update text 
-      if (!this.miningText) {
-        this.miningText = this.add.text(
-          this.nearbyAsteroid.x,
-          this.nearbyAsteroid.y - 70,
-          text,
-          { fontSize: '14px', color: '#ffffff' }
-        ).setOrigin(0.5);
-      } else {
-        this.miningText.setText(text);
-        this.miningText.setPosition(this.nearbyAsteroid.x, this.nearbyAsteroid.y - 70);
-        this.miningText.setVisible(true);
-      }
+    if (this.nearbyAsteroids.length > 0 && !this.miningActive) {
+        // Show a "press SPACE to mine" tooltip
+        const text = `Press SPACE to attack ${this.nearbyAsteroids.length} asteroid${this.nearbyAsteroids.length > 1 ? 's' : ''}`;
+        
+        // Add or update text (position it above the ship)
+        if (!this.miningText) {
+            this.miningText = this.add.text(
+                this.ship.x,
+                this.ship.y - 70,
+                text,
+                { fontSize: '14px', color: '#ffffff' }
+            ).setOrigin(0.5);
+        } else {
+            this.miningText.setText(text);
+            this.miningText.setPosition(this.ship.x, this.ship.y - 70);
+            this.miningText.setVisible(true);
+        }
     } else if (this.miningText) {
-      // Hide the text if not near an asteroid
-      this.miningText.setVisible(false);
+        // Hide the text if not near any asteroids
+        this.miningText.setVisible(false);
     }
   }
 
   private handleMiningInput() {
     if (!this.miningKey) return;
     
-    // Start mining if spacebar is pressed and near an asteroid
-    if (Phaser.Input.Keyboard.JustDown(this.miningKey) && this.nearbyAsteroid && !this.miningActive) {
-      this.startMining(this.nearbyAsteroid);
+    // Start mining if spacebar is pressed and near asteroids
+    if (Phaser.Input.Keyboard.JustDown(this.miningKey) && this.nearbyAsteroids.length > 0 && !this.miningActive) {
+        this.startMining();
     }
     
-    // Stop mining if spacebar is released or too far from asteroid
-    if (this.miningActive && this.miningTarget) {
-      const distance = Phaser.Math.Distance.Between(
-        this.ship.x, this.ship.y,
-        this.miningTarget.x, this.miningTarget.y
-      );
-      
-      if (distance > this.miningRange || Phaser.Input.Keyboard.JustUp(this.miningKey)) {
+    // Stop mining if spacebar is released
+    if (this.miningActive && Phaser.Input.Keyboard.JustUp(this.miningKey)) {
         this.stopMining();
-      }
+    }
+    
+    // Check if all targets have been destroyed or are out of range
+    if (this.miningActive) {
+        // Filter out destroyed asteroids and those out of range
+        this.miningTargets = this.miningTargets.filter(target => {
+            if (!target.active) return false; // Destroyed
+            
+            const distance = Phaser.Math.Distance.Between(
+                this.ship.x, this.ship.y,
+                target.x, target.y
+            );
+            
+            const playerStats = this.resourceManager.getPlayerStats();
+            return distance <= playerStats.attackRange;
+        });
+        
+        // Stop mining if no targets left
+        if (this.miningTargets.length === 0) {
+            this.stopMining();
+        }
     }
   }
 
-  private startMining(asteroid: Asteroid) {
+  private startMining() {
     this.miningActive = true;
-    this.miningTarget = asteroid;
     
-    // Set mining timer to damage asteroid periodically
+    // Get player stats for multiAttack
     const playerStats = this.resourceManager.getPlayerStats();
-    const miningSpeed = (playerStats as any).miningSpeed || 1;
+    const maxTargets = playerStats.multiAttack;
+    
+    // Clear any previous targets first
+    this.miningTargets.forEach(target => {
+        if (target && target.active) {
+            target.setTargeted(false);
+        }
+    });
+    
+    // Sort asteroids by distance (closest first)
+    const sortedAsteroids = [...this.nearbyAsteroids].sort((a, b) => {
+        const distA = Phaser.Math.Distance.Between(this.ship.x, this.ship.y, a.x, a.y);
+        const distB = Phaser.Math.Distance.Between(this.ship.x, this.ship.y, b.x, b.y);
+        return distA - distB;
+    });
+    
+    // Select asteroids to target (limited by multiAttack stat)
+    this.miningTargets = sortedAsteroids.slice(0, maxTargets);
+    
+    // Set each target as targeted (for visual indicator)
+    this.miningTargets.forEach(target => {
+        if (target && target.active) {
+            target.setTargeted(true);
+        }
+    });
+    
+    // Set mining timer to damage asteroids periodically
+    const miningSpeed = playerStats.miningSpeed || 1;
     this.miningTimer = this.time.addEvent({
-      delay: 500 / miningSpeed, // Faster mining with upgrades
-      callback: this.mineAsteroid,
-      callbackScope: this,
-      loop: true
+        delay: 500 / miningSpeed, // Faster mining with upgrades
+        callback: this.mineAsteroids,
+        callbackScope: this,
+        loop: true
     });
     
     // Play mining sound or effect
@@ -351,61 +492,114 @@ export class GameScene extends Phaser.Scene {
 
   private stopMining() {
     this.miningActive = false;
-    this.miningTarget = null;
+    
+    // Clear targeting on all current targets
+    this.miningTargets.forEach(target => {
+        if (target && target.active) {
+            target.setTargeted(false);
+        }
+    });
+    
+    this.miningTargets = [];
     
     if (this.miningTimer) {
-      this.miningTimer.remove();
-      this.miningTimer = null;
+        this.miningTimer.remove();
+        this.miningTimer = null;
     }
     
     if (this.miningBeam) {
-      this.miningBeam.clear();
+        this.miningBeam.clear();
     }
     
     // Stop mining sound or effect
     // TODO: Stop mining sound
   }
 
-  private mineAsteroid() {
-    if (!this.miningTarget) return;
+  private mineAsteroids() {
+    if (this.miningTargets.length === 0) return;
     
-    // Apply damage to asteroid and check if it's destroyed
+    // Get player stats for mining damage
     const playerStats = this.resourceManager.getPlayerStats();
-    const miningDamage = (playerStats as any).miningPower || 1;
-    const destroyed = this.miningTarget.mine(miningDamage);
+    const miningDamage = playerStats.miningPower || 1;
     
-    if (destroyed) {
-      // Add resources based on asteroid type
-      const resourceAmount = this.miningTarget.getResourceAmount();
-      
-      if (this.miningTarget.getType() === AsteroidType.METAL) {
-        // Metal asteroid: gives full metal amount and 30% of that as crystal
-        this.resourceManager.addResource('metal', resourceAmount);
-        this.resourceManager.addResource('crystal', Math.floor(resourceAmount * 0.3));
+    // Keep track of which targets were destroyed
+    const destroyedTargets: Asteroid[] = [];
+    
+    // Apply damage to each target asteroid
+    this.miningTargets.forEach(target => {
+        if (!target || !target.active) return;
         
-        // Show resource gain feedback
-        this.createFloatingText(`+${resourceAmount}`, 0xaaaaaa, '+metal');
-        if (Math.floor(resourceAmount * 0.3) > 0) {
-          this.createFloatingText(`+${Math.floor(resourceAmount * 0.3)}`, 0x9c5ab8, '+crystal', 30);
+        const destroyed = target.mine(miningDamage);
+        
+        if (destroyed) {
+            // Add to the destroyed list
+            destroyedTargets.push(target);
+            
+            // Add resources based on asteroid type
+            const resourceAmount = target.getResourceAmount();
+            
+            if (target.getType() === AsteroidType.METAL) {
+                // Metal asteroid: gives full metal amount and 30% of that as crystal
+                this.resourceManager.addResource('metal', resourceAmount);
+                this.resourceManager.addResource('crystal', Math.floor(resourceAmount * 0.3));
+                
+                // Show resource gain feedback
+                this.createFloatingText(`+${resourceAmount}`, 0xaaaaaa, '+metal');
+                if (Math.floor(resourceAmount * 0.3) > 0) {
+                    this.createFloatingText(`+${Math.floor(resourceAmount * 0.3)}`, 0x9c5ab8, '+crystal', 30);
+                }
+            } else {
+                // Crystal asteroid: gives full crystal amount and 30% of that as metal
+                this.resourceManager.addResource('crystal', resourceAmount);
+                this.resourceManager.addResource('metal', Math.floor(resourceAmount * 0.3));
+                
+                // Show resource gain feedback
+                this.createFloatingText(`+${resourceAmount}`, 0x9c5ab8, '+crystal');
+                if (Math.floor(resourceAmount * 0.3) > 0) {
+                    this.createFloatingText(`+${Math.floor(resourceAmount * 0.3)}`, 0xaaaaaa, '+metal', 30);
+                }
+            }
+            
+            // Flash based on asteroid type
+            if (target.getType() === AsteroidType.METAL) {
+                this.cameras.main.flash(100, 0, 0, 255, false);
+            } else {
+                this.cameras.main.flash(100, 255, 0, 0, false);
+            }
         }
+    });
+    
+    // Remove destroyed targets from the targets list
+    if (destroyedTargets.length > 0) {
+        this.miningTargets = this.miningTargets.filter(target => !destroyedTargets.includes(target));
         
-        this.cameras.main.flash(300, 0, 0, 255);
-      } else {
-        // Crystal asteroid: gives full crystal amount and 30% of that as metal
-        this.resourceManager.addResource('crystal', resourceAmount);
-        this.resourceManager.addResource('metal', Math.floor(resourceAmount * 0.3));
-        
-        // Show resource gain feedback
-        this.createFloatingText(`+${resourceAmount}`, 0x9c5ab8, '+crystal');
-        if (Math.floor(resourceAmount * 0.3) > 0) {
-          this.createFloatingText(`+${Math.floor(resourceAmount * 0.3)}`, 0xaaaaaa, '+metal', 30);
+        // If we have space for more targets, check if there are any more in range
+        if (this.miningTargets.length < playerStats.multiAttack && this.nearbyAsteroids.length > 0) {
+            // Find asteroids in range that aren't already targeted
+            const availableAsteroids = this.nearbyAsteroids.filter(asteroid => 
+                !this.miningTargets.includes(asteroid) && asteroid.active);
+            
+            // Sort by distance
+            const sortedAvailable = availableAsteroids.sort((a, b) => {
+                const distA = Phaser.Math.Distance.Between(this.ship.x, this.ship.y, a.x, a.y);
+                const distB = Phaser.Math.Distance.Between(this.ship.x, this.ship.y, b.x, b.y);
+                return distA - distB;
+            });
+            
+            // Add new targets up to the limit
+            const newTargets = sortedAvailable.slice(0, playerStats.multiAttack - this.miningTargets.length);
+            
+            // Mark new targets as targeted
+            newTargets.forEach(target => {
+                target.setTargeted(true);
+                this.miningTargets.push(target);
+            });
         }
-        
-        this.cameras.main.flash(300, 255, 0, 0);
-      }
-      
-      // Stop mining since the asteroid is destroyed
-      this.stopMining();
+    }
+    
+    // Stop mining if no targets left
+    if (this.miningTargets.length === 0) {
+        this.stopMining();
     }
   }
 
@@ -456,29 +650,36 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateMiningBeam() {
-    if (!this.miningBeam || !this.miningTarget) return;
+    if (!this.miningBeam) return;
     
-    // Draw mining beam
+    // Clear previous beams
     this.miningBeam.clear();
     
-    // Calculate beam points
-    const start = { x: this.ship.x, y: this.ship.y };
-    const end = { x: this.miningTarget.x, y: this.miningTarget.y };
-    
-    // Draw a laser beam effect
-    this.miningBeam.lineStyle(2, 0x00ffff, 1);
-    this.miningBeam.lineBetween(start.x, start.y, end.x, end.y);
-    
-    // Add beam particles for effect
-    for (let i = 0; i < 3; i++) {
-      const t = Math.random();
-      const x = start.x + (end.x - start.x) * t;
-      const y = start.y + (end.y - start.y) * t;
-      
-      // Draw a small circle along the beam
-      this.miningBeam.fillStyle(0x00ffff, 0.8);
-      this.miningBeam.fillCircle(x, y, 3);
-    }
+    // Draw beams to each target
+    this.miningTargets.forEach(target => {
+        if (!target || !target.active) return;
+        
+        // Calculate beam points
+        const start = { x: this.ship.x, y: this.ship.y };
+        const end = { x: target.x, y: target.y };
+        
+        // Draw a laser beam effect
+        if (this.miningBeam) {
+            this.miningBeam.lineStyle(2, 0x00ffff, 1);
+            this.miningBeam.lineBetween(start.x, start.y, end.x, end.y);
+            
+            // Add beam particles for effect
+            for (let i = 0; i < 3; i++) {
+                const t = Math.random();
+                const x = start.x + (end.x - start.x) * t;
+                const y = start.y + (end.y - start.y) * t;
+                
+                // Draw a small circle along the beam
+                this.miningBeam.fillStyle(0x00ffff, 0.8);
+                this.miningBeam.fillCircle(x, y, 3);
+            }
+        }
+    });
   }
 
   private handleShipMovement() {
@@ -602,5 +803,22 @@ export class GameScene extends Phaser.Scene {
     if (uiScene && (uiScene as any).showUI) {
       (uiScene as any).showUI();
     }
+  }
+
+  private initializeAttackSystem() {
+    // Ensure minimum stats are set properly
+    this.resourceManager.ensureMinimumStats();
+    
+    // FORCE set the attack range to a visible value for testing
+    this.resourceManager.setPlayerStat('attackRange', 200);
+    
+    // Create attack range indicator with a more distinctive style
+    this.attackRangeIndicator = this.add.graphics();
+    this.attackRangeIndicator.setDepth(100); // Ensure it's above other elements
+    
+    // Make an initial update to ensure it's visible
+    this.updateAttackRangeIndicator();
+    
+    console.log("Attack system initialized with range:", this.resourceManager.getPlayerStats().attackRange);
   }
 } 

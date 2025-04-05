@@ -51,7 +51,7 @@ export class ResourceManager {
     autoCollectChance: 0,
     miningSpeed: 1,
     miningPower: 1,
-    attackRange: 100,
+    attackRange: 150,
     attackPower: 1,
     multiAttack: 1
   };
@@ -198,7 +198,7 @@ export class ResourceManager {
       autoCollectChance: 0, // No auto-collection at start
       miningSpeed: 1, // Default mining speed
       miningPower: 1, // Default mining power
-      attackRange: 100, // Default attack range
+      attackRange: 150, // Increased default attack range (was 100)
       attackPower: 1, // Default attack power
       multiAttack: 1 // Default number of targets (only attack 1 at the start)
     };
@@ -323,7 +323,7 @@ export class ResourceManager {
         autoCollectChance: 0,
         miningSpeed: 1,
         miningPower: 1,
-        attackRange: 100,
+        attackRange: 150,
         attackPower: 1,
         multiAttack: 1
       };
@@ -441,7 +441,29 @@ export class ResourceManager {
   }
 
   setPlayerStat(statName: keyof PlayerStats, value: number): void {
-    this.playerStats[statName] = value;
+    // Ensure attack range is always positive
+    if (statName === 'attackRange' && value <= 0) {
+      console.warn('Attempted to set attackRange to non-positive value:', value);
+      this.playerStats[statName] = 100; // Minimum attack range
+    } else {
+      this.playerStats[statName] = value;
+    }
+  }
+
+  // Add a new method to ensure minimum values for stats
+  ensureMinimumStats(): void {
+    // Ensure attack range is always at least 100
+    if (this.playerStats.attackRange <= 0) {
+      console.log('Fixing zero or negative attackRange:', this.playerStats.attackRange);
+      this.playerStats.attackRange = 150;
+    }
+    
+    // Ensure other stats have sane minimum values
+    if (this.playerStats.shipSpeed <= 0) this.playerStats.shipSpeed = 200;
+    if (this.playerStats.miningSpeed <= 0) this.playerStats.miningSpeed = 1;
+    if (this.playerStats.miningPower <= 0) this.playerStats.miningPower = 1;
+    if (this.playerStats.attackPower <= 0) this.playerStats.attackPower = 1;
+    if (this.playerStats.multiAttack <= 0) this.playerStats.multiAttack = 1;
   }
 
   // Upgrade functions

@@ -13,6 +13,8 @@ export class Asteroid extends Phaser.Physics.Arcade.Sprite {
   private hasBeenMined: boolean = false;
   private resourceAmount: number;
   private healthBar: Phaser.GameObjects.Graphics;
+  private targetIndicator: Phaser.GameObjects.Graphics | null = null;
+  private isTargeted: boolean = false;
   private explosionEmitter: Phaser.GameObjects.Particles.ParticleEmitter | null = null;
 
   constructor(
@@ -51,6 +53,11 @@ export class Asteroid extends Phaser.Physics.Arcade.Sprite {
     
     // Update health bar position to follow asteroid
     this.updateHealthBar();
+    
+    // Update target indicator if it exists
+    if (this.targetIndicator && this.isTargeted) {
+      this.updateTargetIndicator();
+    }
   }
   
   updateHealthBar() {
@@ -235,5 +242,72 @@ export class Asteroid extends Phaser.Physics.Arcade.Sprite {
   
   getType(): AsteroidType {
     return this.asteroidType;
+  }
+
+  // New method to set targeting status
+  setTargeted(targeted: boolean): void {
+    this.isTargeted = targeted;
+    
+    if (targeted) {
+      this.createTargetIndicator();
+    } else if (this.targetIndicator) {
+      this.targetIndicator.destroy();
+      this.targetIndicator = null;
+    }
+  }
+  
+  // New method to create a visual indicator that this asteroid is targeted
+  private createTargetIndicator(): void {
+    if (!this.targetIndicator) {
+      this.targetIndicator = this.scene.add.graphics();
+    }
+    
+    this.updateTargetIndicator();
+  }
+  
+  // New method to update the visual target indicator
+  private updateTargetIndicator(): void {
+    if (!this.targetIndicator) return;
+    
+    this.targetIndicator.clear();
+    this.targetIndicator.lineStyle(2, 0xff0000, 0.8);
+    
+    // Draw a pulsing circle around the asteroid
+    const time = this.scene.time.now;
+    const scale = 1 + Math.sin(time / 200) * 0.1; // Pulsing effect
+    
+    // Draw target indicator circle
+    this.targetIndicator.strokeCircle(this.x, this.y, 40 * scale);
+    
+    // Add crosshair lines
+    const size = 10;
+    this.targetIndicator.beginPath();
+    // Top line
+    this.targetIndicator.moveTo(this.x, this.y - 40 * scale - size);
+    this.targetIndicator.lineTo(this.x, this.y - 40 * scale + size);
+    // Bottom line
+    this.targetIndicator.moveTo(this.x, this.y + 40 * scale - size);
+    this.targetIndicator.lineTo(this.x, this.y + 40 * scale + size);
+    // Left line
+    this.targetIndicator.moveTo(this.x - 40 * scale - size, this.y);
+    this.targetIndicator.lineTo(this.x - 40 * scale + size, this.y);
+    // Right line
+    this.targetIndicator.moveTo(this.x + 40 * scale - size, this.y);
+    this.targetIndicator.lineTo(this.x + 40 * scale + size, this.y);
+    this.targetIndicator.strokePath();
+  }
+
+  destroy(fromScene?: boolean) {
+    // Clean up graphics objects
+    if (this.healthBar) {
+      this.healthBar.destroy();
+    }
+    
+    if (this.targetIndicator) {
+      this.targetIndicator.destroy();
+      this.targetIndicator = null;
+    }
+    
+    super.destroy(fromScene);
   }
 } 
