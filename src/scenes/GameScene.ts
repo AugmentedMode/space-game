@@ -20,6 +20,12 @@ export class GameScene extends Phaser.Scene {
   private miningBeam: Phaser.GameObjects.Graphics | null = null;
   private miningTimer: Phaser.Time.TimerEvent | null = null;
   private miningKey!: Phaser.Input.Keyboard.Key;
+  private teleportKey!: Phaser.Input.Keyboard.Key; // New teleport key
+  private teleportHoldTime: number = 0; // Track how long teleport key is held
+  private teleportRequiredTime: number = 1000; // Hold for 1 second to teleport
+  private teleportCooldown: number = 0; // Cooldown timer
+  private teleportCooldownTime: number = 5000; // 5 seconds cooldown
+  private teleportText: Phaser.GameObjects.Text | null = null; // Teleport status text
   private nearbyAsteroids: Asteroid[] = []; // Changed to array for multiple targets
   private attackRangeIndicator: Phaser.GameObjects.Graphics | null = null; // New attack range indicator
   private miningText: Phaser.GameObjects.Text | null = null;
@@ -98,10 +104,12 @@ export class GameScene extends Phaser.Scene {
     // Create the space station (fixed position in the world)
     this.createSpaceStation();
     
-    // Create the ship (in the center of the world)
+    // Create the ship (near the space station)
+    const stationX = this.worldSize.width / 2 - 500;
+    const stationY = this.worldSize.height / 2 - 500;
     this.ship = this.physics.add.sprite(
-      this.worldSize.width / 2,
-      this.worldSize.height / 2,
+      stationX + 50, // Slight offset to avoid overlap
+      stationY + 50,
       'ship'
     );
     this.ship.setCollideWorldBounds(true);
@@ -114,9 +122,21 @@ export class GameScene extends Phaser.Scene {
     if (this.input && this.input.keyboard) {
       this.cursors = this.input.keyboard.createCursorKeys();
       this.miningKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+      this.teleportKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T); // Use 'T' for teleport
     } else {
       console.error('Keyboard input not available');
     }
+    
+    // Create teleport text (initially hidden)
+    this.teleportText = this.add.text(
+      this.cameras.main.width / 2,
+      this.cameras.main.height - 50,
+      '',
+      { fontSize: '18px', color: '#ffffff', backgroundColor: '#333333', padding: { x: 10, y: 5 } }
+    ).setOrigin(0.5)
+     .setScrollFactor(0)
+     .setDepth(1000)
+     .setVisible(false);
     
     // Initialize asteroid belt manager
     this.asteroidBeltManager = new AsteroidBeltManager(this);
@@ -158,6 +178,9 @@ export class GameScene extends Phaser.Scene {
     // Handle keyboard movement
     this.handleShipMovement();
     
+    // Handle teleport functionality
+    this.handleTeleport(delta);
+    
     // Update attack range indicator - ensure this runs every frame
     this.updateAttackRangeIndicator();
     
@@ -185,6 +208,16 @@ export class GameScene extends Phaser.Scene {
     
     // Update nearby asteroids
     this.updateNearbyAsteroids();
+    
+    // Update teleport cooldown
+    if (this.teleportCooldown > 0) {
+      this.teleportCooldown -= delta;
+      if (this.teleportCooldown <= 0) {
+        if (this.teleportText) {
+          this.teleportText.setVisible(false);
+        }
+      }
+    }
   }
 
   private createAnimations() {
@@ -776,5 +809,63 @@ export class GameScene extends Phaser.Scene {
     
     // Initialize the graphics object but don't show debug visuals
     this.attackRangeIndicator = this.add.graphics();
+  }
+
+  private handleTeleport(delta: number) {
+    if (!this.teleportKey) return;
+    
+    // Update the teleport cooldown
+    if (this.teleportCooldown > 0) {
+      if (this.teleportText) {
+        this.teleportText.setText(`Teleport cooldown: ${Math.ceil(this.teleportCooldown / 1000)}s`);
+        this.teleportText.setVisible(true);
+      }
+      return; // Can't teleport during cooldown
+    }
+    
+    // Check if teleport key is being held
+    if (this.teleportKey.isDown) {
+      this.teleportHoldTime += delta;
+      
+      // Update the progress display
+      if (this.teleportText) {
+        const progress = Math.min(100, Math.floor((this.teleportHoldTime / this.teleportRequiredTime) * 100));
+        this.teleportText.setText(`Hold to teleport: ${progress}%`);
+        this.teleportText.setVisible(true);
+      }
+      
+      // Check if held long enough
+      if (this.teleportHoldTime >= this.teleportRequiredTime) {
+        this.teleportToSpaceStation();
+        this.teleportHoldTime = 0;
+        this.teleportCooldown = this.teleportCooldownTime;
+      }
+    } else {
+      // Reset when key is released
+      this.teleportHoldTime = 0;
+      if (this.teleportText && this.teleportCooldown <= 0) {
+        this.teleportText.setVisible(false);
+      }
+    }
+  }
+  
+  private teleportToSpaceStation() {
+    // Get space station position
+    const stationX = this.worldSize.width / 2 - 500;
+    const stationY = this.worldSize.height / 2 - 500;
+    
+    // Add a teleport effect
+    this.cameras.main.flash(500, 0, 200, 255);
+    
+    // Stop any mining activity
+    if (this.miningActive) {
+      this.stopMining();
+    }
+    
+    // Move ship to space station with slight offset
+    this.ship.setPosition(stationX + 50, stationY + 50);
+    
+    // Show teleport confirmation
+    this.createFloatingText('Teleported!', 0x00ffff);
   }
 } 
