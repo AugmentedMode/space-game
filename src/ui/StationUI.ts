@@ -248,6 +248,9 @@ export class StationUI {
     this.visible = true;
     this.container.setVisible(true);
     
+    // Resize to current screen size
+    this.resize(this.scene.game.canvas.width, this.scene.game.canvas.height);
+    
     // Disable input in the game scene
     if (this.gameScene && this.gameScene.input && this.gameScene.input.keyboard) {
       this.gameScene.input.keyboard.enabled = false;
@@ -284,6 +287,76 @@ export class StationUI {
   
   destroy() {
     this.container.destroy();
+  }
+  
+  /**
+   * Handles window resize events
+   */
+  resize(width: number, height: number): void {
+    // Update overlay and terminal background sizes
+    const overlay = this.container.getAt(0) as Phaser.GameObjects.Rectangle;
+    if (overlay) {
+      overlay.setSize(width, height);
+    }
+    
+    // Update terminal background
+    const terminalBg = this.container.getAt(1) as Phaser.GameObjects.Container;
+    if (terminalBg && terminalBg.getAt(0)) {
+      const panel = terminalBg.getAt(0) as Phaser.GameObjects.Rectangle;
+      panel.setSize(width - 40, height - 40);
+      
+      // Redraw grid
+      const grid = terminalBg.getAt(1) as Phaser.GameObjects.Graphics;
+      if (grid) {
+        grid.clear();
+        grid.lineStyle(1, UITheme.BACKGROUND_LIGHT, 0.2);
+        
+        // Draw vertical grid lines
+        const spacing = 50;
+        for (let x = 20; x < width - 20; x += spacing) {
+          grid.beginPath();
+          grid.moveTo(x, 20);
+          grid.lineTo(x, height - 20);
+          grid.closePath();
+          grid.strokePath();
+        }
+        
+        // Draw horizontal grid lines
+        for (let y = 20; y < height - 20; y += spacing) {
+          grid.beginPath();
+          grid.moveTo(20, y);
+          grid.lineTo(width - 20, y);
+          grid.closePath();
+          grid.strokePath();
+        }
+      }
+    }
+    
+    // Update header
+    const header = this.container.getAt(2) as Phaser.GameObjects.Container;
+    if (header) {
+      // Update title position
+      const title = header.getAt(0) as Phaser.GameObjects.Text;
+      if (title) {
+        title.setPosition(width / 2, 50);
+      }
+      
+      // Update close button position
+      const closeButton = header.getAt(2) as Phaser.GameObjects.Container;
+      if (closeButton) {
+        closeButton.setPosition(width - 70, 50);
+      }
+    }
+    
+    // Update save management panel position
+    if (this.saveManagementPanel) {
+      this.saveManagementPanel.setPosition(40, height - 120);
+    }
+    
+    // Update minimap position
+    if (this.minimapPanel && this.minimapPanel.container) {
+      this.minimapPanel.container.setPosition(width - 220, 100);
+    }
   }
   
   /**

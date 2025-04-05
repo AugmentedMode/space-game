@@ -40,10 +40,17 @@ export class UIScene extends Phaser.Scene {
       }
     });
   }
+  
   update(time: number, delta: number) {
     // Update station UI if it exists
     if (this.stationUI) {
       this.stationUI.update();
+      
+      // Check if we need to resize UI based on window size
+      if (this.cameras.main.width !== this.game.canvas.width || 
+          this.cameras.main.height !== this.game.canvas.height) {
+        this.stationUI.resize(this.game.canvas.width, this.game.canvas.height);
+      }
     }
   }
   

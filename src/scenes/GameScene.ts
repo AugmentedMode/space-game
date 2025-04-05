@@ -129,6 +129,16 @@ export class GameScene extends Phaser.Scene {
   private setupWorld() {
     // Set world bounds
     this.physics.world.setBounds(0, 0, this.worldSize.width, this.worldSize.height);
+    
+    // Handle resizing
+    this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
+      // Adjust camera zoom if needed based on new size
+      if (this.cameras.main) {
+        const originalZoom = this.cameras.main.zoom;
+        this.cameras.main.setSize(gameSize.width, gameSize.height);
+        this.cameras.main.setZoom(originalZoom);
+      }
+    });
   }
 
   private createAnimations() {
