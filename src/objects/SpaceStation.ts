@@ -77,23 +77,19 @@ export class SpaceStation extends Phaser.Physics.Arcade.Sprite {
     // Check for X key press directly in update method
     this.scene.events.on('update', this.checkKeyPress, this);
     
-    // Alternative direct key press event
-    this.scene.input.keyboard.on('keydown-X', () => {
-      console.log('X key pressed globally');
-      if (this.playerInRange) {
-        console.log('X key pressed while player in range');
-        this.openStationUI();
-      }
-    });
-    
     console.log('Keyboard interaction set up for Space Station');
   }
   
   private checkKeyPress() {
-    // Only respond to X key if player is in range
+    // Only respond to X key if player is in range and key was just pressed (not held)
     if (this.playerInRange && Phaser.Input.Keyboard.JustDown(this.xKey)) {
       console.log('X key pressed in update loop');
       this.openStationUI();
+      
+      // Prevent the event from being processed further
+      if (this.scene && this.scene.input && this.scene.input.keyboard) {
+        this.scene.input.keyboard.resetKeys();
+      }
     }
   }
   
@@ -125,7 +121,7 @@ export class SpaceStation extends Phaser.Physics.Arcade.Sprite {
       this.scene.events.off('update', this.checkKeyPress, this);
     }
     if (this.scene && this.scene.input && this.scene.input.keyboard) {
-      this.scene.input.keyboard.off('keydown-X');
+      // No need to remove 'keydown-X' listener since we removed it
     }
     super.destroy(fromScene);
   }
