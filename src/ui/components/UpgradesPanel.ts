@@ -8,10 +8,18 @@ export class UpgradesPanel {
   private resourceManager: ResourceManager;
   public container: Phaser.GameObjects.Container;
   
-  private tabButtons: Phaser.GameObjects.Container[] = [];
-  private currentTier: number = 1;
   private upgradeButtons: Record<string, Phaser.GameObjects.Container> = {};
   private upgradeCardsContainer: Phaser.GameObjects.Container;
+  private connectionLines: Phaser.GameObjects.Graphics;
+  private panelWidth: number = 700;
+  private panelHeight: number = 600;
+  
+  // Tree visualization parameters
+  private gridSize: number = 150;  // Distance between nodes in grid
+  private nodeWidth: number = 120;
+  private nodeHeight: number = 120;
+  private scrollOffset: number = 0;
+  private maxScroll: number = 0;
   
   constructor(scene: Phaser.Scene, uiManager: UIManager, resourceManager: ResourceManager, x: number, y: number) {
     this.scene = scene;
@@ -21,316 +29,352 @@ export class UpgradesPanel {
     // Create main container
     this.container = this.scene.add.container(x, y);
     
-    // Create tabs panel
-    this.createTabsPanel();
+    // Create panel background
+    const panelBg = this.uiManager.createPanel(0, 0, this.panelWidth, this.panelHeight, UITheme.BACKGROUND_LIGHT);
+    this.container.add(panelBg);
     
-    // Create upgrades container
+    // Create title
+    const titleText = this.uiManager.createText('SHIP UPGRADES', UIConstants.FONT_SIZE.MEDIUM);
+    titleText.setPosition(this.panelWidth / 2, 20);
+    titleText.setFontStyle('bold');
+    this.container.add(titleText);
+    
+    // Create scroll controls
+    this.createScrollControls();
+    
+    // Create graphics for connection lines
+    this.connectionLines = this.scene.add.graphics();
+    
+    // Create container for upgrade nodes
     this.upgradeCardsContainer = this.scene.add.container(0, 60);
+    this.upgradeCardsContainer.add(this.connectionLines);
+    
+    // Create mask for scrolling
+    const mask = this.scene.make.graphics({});
+    mask.fillStyle(0xffffff);
+    mask.fillRect(x, y + 60, this.panelWidth, this.panelHeight - 80);
+    
+    // Apply mask to the upgrades container
+    this.upgradeCardsContainer.setMask(mask.createGeometryMask());
+    
     this.container.add(this.upgradeCardsContainer);
     
-    // Initial display of tier 1 upgrades
-    this.showTierUpgrades(1);
+    // Initial rendering of upgrade tree
+    this.renderUpgradeTree();
   }
   
-  private createTabsPanel() {
-    // Create tab panel background
-    const tabPanel = this.uiManager.createPanel(0, 0, 700, 50, UITheme.BACKGROUND_LIGHT);
-    this.container.add(tabPanel);
-    
-    // Create tabs
-    const tabWidth = 120;
-    const tabHeight = 40;
-    const spacing = 10;
-    
-    for (let tier = 1; tier <= 3; tier++) {
-      // Calculate position
-      const x = tier * (tabWidth + spacing) - (tabWidth + spacing) + 30;
-      const y = 5;
-      
-      // Create tab container
-      const tabContainer = this.scene.add.container(x, y);
-      
-      // Create tab background
-      const bgColor = tier === this.currentTier ? UITheme.PRIMARY : UITheme.BUTTON_DEFAULT;
-      const tabBg = this.scene.add.rectangle(0, 0, tabWidth, tabHeight, bgColor);
-      tabBg.setStrokeStyle(1, UITheme.ACCENT);
-      
-      // Create tab text
-      const tabText = this.uiManager.createText(`TIER ${tier}`, UIConstants.FONT_SIZE.MEDIUM);
-      tabText.setOrigin(0.5, 0.5);
-      
-      tabContainer.add([tabBg, tabText]);
-      
-      // Make interactive
-      tabBg.setInteractive({ useHandCursor: true })
-        .on('pointerover', () => {
-          if (tier !== this.currentTier) {
-            tabBg.setFillStyle(UITheme.BUTTON_HOVER);
-          }
-        })
-        .on('pointerout', () => {
-          if (tier !== this.currentTier) {
-            tabBg.setFillStyle(UITheme.BUTTON_DEFAULT);
-          }
-        })
-        .on('pointerdown', () => {
-          this.showTierUpgrades(tier);
-        });
-      
-      this.tabButtons.push(tabContainer);
-      tabPanel.add(tabContainer);
-    }
-    
-    // Add title
-    const tabTitle = this.uiManager.createText('UPGRADES', UIConstants.FONT_SIZE.MEDIUM);
-    tabTitle.setOrigin(0, 0.5);
-    tabTitle.setPosition(UIConstants.PADDING.MEDIUM, 25);
-    tabTitle.setFontStyle('bold');
-    tabPanel.add(tabTitle);
-    
-    // Add to main container
-    this.container.add(tabPanel);
-  }
-  
-  private showTierUpgrades(tier: number) {
-    // Update current tier
-    this.currentTier = tier;
-    
-    // Update tab visuals
-    this.tabButtons.forEach((tab, index) => {
-      const tabTier = index + 1;
-      const tabBg = tab.getAt(0) as Phaser.GameObjects.Rectangle;
-      tabBg.setFillStyle(tabTier === tier ? UITheme.PRIMARY : UITheme.BUTTON_DEFAULT);
+  private createScrollControls() {
+    // Up button
+    const upButton = this.uiManager.createButton('▲', 40, 40, () => {
+      this.scroll(100); // Scroll up by 100 pixels
     });
+    upButton.setPosition(this.panelWidth - 30, 80);
     
+    // Down button
+    const downButton = this.uiManager.createButton('▼', 40, 40, () => {
+      this.scroll(-100); // Scroll down by 100 pixels
+    });
+    downButton.setPosition(this.panelWidth - 30, this.panelHeight - 80);
+    
+    this.container.add([upButton, downButton]);
+  }
+  
+  private scroll(amount: number) {
+    // Calculate new scroll position
+    const newOffset = Math.min(0, Math.max(this.scrollOffset + amount, -this.maxScroll));
+    
+    // Only apply if changed
+    if (newOffset !== this.scrollOffset) {
+      this.scrollOffset = newOffset;
+      this.upgradeCardsContainer.y = 60 + this.scrollOffset;
+      
+      // Update connection lines when scrolling
+      this.renderConnectionLines();
+    }
+  }
+  
+  private renderUpgradeTree() {
     // Clear existing upgrade cards
     this.upgradeCardsContainer.removeAll(true);
     this.upgradeButtons = {};
     
-    // Get upgrades for this tier
-    const upgrades = this.resourceManager.getUpgrades().filter(u => u.tier === tier);
+    // Re-add the graphics object for connection lines
+    this.connectionLines = this.scene.add.graphics();
+    this.upgradeCardsContainer.add(this.connectionLines);
     
-    // Create upgrade cards
-    const cardWidth = 220;
-    const cardHeight = 200;
-    const cardsPerRow = 3;
-    const padding = 15;
+    // Get root upgrade(s)
+    const rootUpgrades = this.resourceManager.getRootUpgrades();
     
-    upgrades.forEach((upgrade, index) => {
-      // Calculate card position
-      const row = Math.floor(index / cardsPerRow);
-      const col = index % cardsPerRow;
-      const x = col * (cardWidth + padding);
-      const y = row * (cardHeight + padding);
-      
-      // Create card
-      const card = this.createUpgradeCard(upgrade, x, y, cardWidth, cardHeight);
-      this.upgradeCardsContainer.add(card);
-      
-      // Store reference for later updates
-      this.upgradeButtons[upgrade.id] = card;
+    // Start recursive rendering from root nodes
+    rootUpgrades.forEach(rootUpgrade => {
+      this.renderUpgradeNode(rootUpgrade);
+    });
+    
+    // Draw connections between nodes
+    this.renderConnectionLines();
+    
+    // Calculate max scroll based on tree size
+    this.calculateMaxScroll();
+  }
+  
+  private renderConnectionLines() {
+    // Clear previous lines
+    this.connectionLines.clear();
+    
+    // Get all upgrades
+    const upgrades = this.resourceManager.getUpgrades();
+    
+    // Draw lines for each upgrade that has children
+    upgrades.forEach(upgrade => {
+      if (upgrade.children && upgrade.children.length > 0 && upgrade.treePosition) {
+        const parentPos = this.getNodePosition(upgrade.treePosition);
+        const startX = parentPos.x + this.nodeWidth / 2;
+        const startY = parentPos.y + this.nodeHeight / 2;
+        
+        // For each child, draw connection line
+        upgrade.children.forEach(childId => {
+          const childUpgrade = upgrades.find(u => u.id === childId);
+          if (childUpgrade && childUpgrade.treePosition) {
+            const childPos = this.getNodePosition(childUpgrade.treePosition);
+            const endX = childPos.x + this.nodeWidth / 2;
+            const endY = childPos.y + this.nodeHeight / 2;
+            
+            // Set line style based on purchase status
+            if (upgrade.purchased && childUpgrade.purchased) {
+              // Both nodes purchased - bright line
+              this.connectionLines.lineStyle(3, UITheme.SUCCESS, 0.8);
+            } else if (upgrade.purchased) {
+              // Only parent purchased - available connection
+              this.connectionLines.lineStyle(3, UITheme.PRIMARY, 0.8);
+            } else {
+              // Neither purchased - dimmed line
+              this.connectionLines.lineStyle(2, UITheme.BUTTON_DEFAULT, 0.4);
+            }
+            
+            // Draw line
+            this.connectionLines.beginPath();
+            this.connectionLines.moveTo(startX, startY);
+            this.connectionLines.lineTo(endX, endY);
+            this.connectionLines.closePath();
+            this.connectionLines.strokePath();
+          }
+        });
+      }
     });
   }
   
-  private createUpgradeCard(upgrade: ShipUpgrade, x: number, y: number, width: number, height: number) {
+  private renderUpgradeNode(upgrade: ShipUpgrade) {
+    if (!upgrade.treePosition) return;
+    
+    // Calculate position based on tree position
+    const position = this.getNodePosition(upgrade.treePosition);
+    
+    // Create node at position
+    const node = this.createUpgradeNode(upgrade, position.x, position.y);
+    this.upgradeCardsContainer.add(node);
+    
+    // Store reference
+    this.upgradeButtons[upgrade.id] = node;
+    
+    // Recursively render children
+    if (upgrade.children) {
+      upgrade.children.forEach(childId => {
+        const childUpgrade = this.resourceManager.getUpgrades().find(u => u.id === childId);
+        if (childUpgrade) {
+          this.renderUpgradeNode(childUpgrade);
+        }
+      });
+    }
+  }
+  
+  private getNodePosition(treePosition: {x: number, y: number}) {
+    // Center the origin point
+    const centerX = this.panelWidth / 2;
+    const centerY = 100;
+    
+    // Calculate position with grid spacing
+    return {
+      x: centerX + treePosition.x * this.gridSize,
+      y: centerY + treePosition.y * this.gridSize
+    };
+  }
+  
+  private calculateMaxScroll() {
+    // Find the lowest node in the tree
+    const upgrades = this.resourceManager.getUpgrades();
+    let maxY = 0;
+    
+    upgrades.forEach(upgrade => {
+      if (upgrade.treePosition) {
+        const position = this.getNodePosition(upgrade.treePosition);
+        maxY = Math.max(maxY, position.y + this.nodeHeight);
+      }
+    });
+    
+    // Calculate how much we need to scroll to see all nodes
+    this.maxScroll = Math.max(0, maxY - (this.panelHeight - 100));
+  }
+  
+  private createUpgradeNode(upgrade: ShipUpgrade, x: number, y: number): Phaser.GameObjects.Container {
     const container = this.scene.add.container(x, y);
     
-    // Determine card state and appearance
-    let cardState: 'purchased' | 'available' | 'locked' | 'unaffordable' = 'unaffordable';
+    // Determine node state
+    let nodeState: 'purchased' | 'available' | 'locked' = 'locked';
     
     if (upgrade.purchased) {
-      cardState = 'purchased';
+      nodeState = 'purchased';
     } else if (upgrade.requires) {
-      const requiredUpgrade = this.resourceManager.getUpgrades().find(u => u.id === upgrade.requires);
-      if (!requiredUpgrade?.purchased) {
-        cardState = 'locked';
-      } else if (this.resourceManager.canAffordUpgrade(upgrade.id)) {
-        cardState = 'available';
+      // Check if all requirements are purchased
+      const canPurchase = upgrade.requires.every(requiredId => {
+        const requiredUpgrade = this.resourceManager.getUpgrades().find(u => u.id === requiredId);
+        return requiredUpgrade?.purchased === true;
+      });
+      
+      if (canPurchase) {
+        nodeState = 'available';
       }
-    } else if (this.resourceManager.canAffordUpgrade(upgrade.id)) {
-      cardState = 'available';
+    } else {
+      nodeState = 'available';
     }
     
-    // Set card background based on state
+    // Set background color based on state
     let bgColor: number;
     let textAlpha = 1;
     
-    switch (cardState) {
+    switch (nodeState) {
       case 'purchased':
-        bgColor = UITheme.BUTTON_DISABLED;
-        textAlpha = 0.7;
+        bgColor = UITheme.SUCCESS;
         break;
       case 'available':
-        bgColor = UITheme.UPGRADE_AVAILABLE;
+        bgColor = UITheme.PRIMARY;
         break;
       case 'locked':
-        bgColor = UITheme.UPGRADE_LOCKED;
-        textAlpha = 0.6;
-        break;
-      case 'unaffordable':
       default:
         bgColor = UITheme.BUTTON_DEFAULT;
+        textAlpha = 0.6;
         break;
     }
     
-    // Create card background
-    const cardBg = this.scene.add.rectangle(0, 0, width, height, bgColor, 0.9);
-    cardBg.setOrigin(0, 0);
-    cardBg.setStrokeStyle(2, UITheme.ACCENT);
+    // Create node background
+    const nodeBg = this.scene.add.rectangle(0, 0, this.nodeWidth, this.nodeHeight, bgColor, 0.8);
+    nodeBg.setOrigin(0, 0);
+    nodeBg.setStrokeStyle(2, UITheme.ACCENT);
     
-    // Add top accent bar
-    const accentBar = this.scene.add.rectangle(0, 0, width, 6, UITheme.ACCENT);
-    accentBar.setOrigin(0, 0);
+    // Create upgrade icon (placeholder)
+    const iconBg = this.scene.add.circle(this.nodeWidth / 2, 30, 20, 0xffffff, 0.3);
     
-    // Create upgrade title
-    const titleText = this.uiManager.createText(upgrade.name, UIConstants.FONT_SIZE.MEDIUM);
-    titleText.setPosition(width / 2, 20);
-    titleText.setOrigin(0.5, 0);
-    titleText.setFontStyle('bold');
-    titleText.setAlpha(textAlpha);
+    // Show upgrade name
+    const nameText = this.uiManager.createText(upgrade.name, UIConstants.FONT_SIZE.SMALL);
+    nameText.setPosition(this.nodeWidth / 2, 60);
+    nameText.setOrigin(0.5, 0);
+    nameText.setAlpha(textAlpha);
+    nameText.setWordWrapWidth(this.nodeWidth - 10);
     
-    // Create description
-    const descText = this.uiManager.createText(upgrade.description, UIConstants.FONT_SIZE.SMALL, UITheme.TEXT_SECONDARY);
-    descText.setPosition(width / 2, 55);
-    descText.setOrigin(0.5, 0);
-    descText.setWordWrapWidth(width - 20);
-    descText.setAlign('center');
-    descText.setAlpha(textAlpha);
+    // Show cost for available upgrades
+    let costText: Phaser.GameObjects.Text | null = null;
     
-    // Add separator line
-    const separator = this.scene.add.graphics();
-    separator.lineStyle(1, UITheme.BACKGROUND_LIGHT, 0.8);
-    separator.beginPath();
-    separator.moveTo(10, 100);
-    separator.lineTo(width - 10, 100);
-    separator.closePath();
-    separator.strokePath();
-    
-    // Add cost info
-    let costText: Phaser.GameObjects.Text;
-    
-    if (cardState === 'purchased') {
-      costText = this.uiManager.createText('PURCHASED', UIConstants.FONT_SIZE.SMALL, UITheme.SUCCESS);
-    } else if (cardState === 'locked') {
-      const requiredUpgrade = this.resourceManager.getUpgrades().find(u => u.id === upgrade.requires);
-      costText = this.uiManager.createText(`REQUIRES: ${requiredUpgrade?.name || 'Unknown'}`, UIConstants.FONT_SIZE.SMALL, UITheme.ERROR);
-    } else {
-      costText = this.uiManager.createText(`COST:`, UIConstants.FONT_SIZE.SMALL, UITheme.TEXT_SECONDARY);
-    }
-    costText.setPosition(width / 2, 110);
-    costText.setOrigin(0.5, 0);
-    costText.setAlpha(textAlpha);
-    
-    // Only show resource costs if not purchased and not locked
-    const elements = [cardBg, accentBar, titleText, descText, separator, costText];
-    
-    if (cardState !== 'purchased' && cardState !== 'locked') {
-      // Create metal cost
-      const metalIcon = this.createResourceCostIcon(width / 2 - 40, 135, UITheme.METAL);
-      const metalCost = this.uiManager.createText(upgrade.cost.metal.toString(), UIConstants.FONT_SIZE.SMALL, UITheme.METAL);
-      metalCost.setPosition(width / 2 - 40 + 15, 135);
-      metalCost.setOrigin(0, 0.5);
-      
-      // Create crystal cost
-      const crystalIcon = this.createResourceCostIcon(width / 2 + 20, 135, UITheme.CRYSTAL);
-      const crystalCost = this.uiManager.createText(upgrade.cost.crystal.toString(), UIConstants.FONT_SIZE.SMALL, UITheme.CRYSTAL);
-      crystalCost.setPosition(width / 2 + 20 + 15, 135);
-      crystalCost.setOrigin(0, 0.5);
-      
-      elements.push(metalIcon, metalCost, crystalIcon, crystalCost);
-    }
-    
-    // Add purchase button if not purchased and not locked
-    if (cardState !== 'purchased' && cardState !== 'locked') {
+    if (nodeState === 'available') {
       const canAfford = this.resourceManager.canAffordUpgrade(upgrade.id);
-      const buttonText = canAfford ? 'PURCHASE' : 'CANNOT AFFORD';
-      const buttonColor = canAfford ? UITheme.SUCCESS : UITheme.ERROR;
+      const costColor = canAfford ? UITheme.TEXT_PRIMARY : UITheme.ERROR;
       
-      const buttonBg = this.scene.add.rectangle(width / 2, height - 30, width - 20, 40, buttonColor);
-      buttonBg.setOrigin(0.5, 0.5);
-      
-      const purchaseText = this.uiManager.createText(buttonText, UIConstants.FONT_SIZE.SMALL);
-      purchaseText.setPosition(width / 2, height - 30);
-      purchaseText.setOrigin(0.5, 0.5);
-      
-      elements.push(buttonBg, purchaseText);
-      
-      // Make button interactive
-      if (canAfford) {
-        buttonBg.setInteractive({ useHandCursor: true })
-          .on('pointerover', () => {
-            buttonBg.setFillStyle(0x0da271); // Darker green
-          })
-          .on('pointerout', () => {
-            buttonBg.setFillStyle(UITheme.SUCCESS);
-          })
-          .on('pointerdown', () => {
-            this.purchaseUpgrade(upgrade);
-          });
-      }
+      costText = this.uiManager.createText(
+        `M: ${upgrade.cost.metal} C: ${upgrade.cost.crystal}`,
+        UIConstants.FONT_SIZE.SMALL,
+        costColor
+      );
+      costText.setPosition(this.nodeWidth / 2, this.nodeHeight - 20);
+      costText.setOrigin(0.5, 0.5);
     }
     
-    // Add visual effects to specific card states
-    if (cardState === 'available') {
-      // Add pulsing effect for available upgrades
-      this.scene.tweens.add({
-        targets: accentBar,
-        alpha: 0.6,
-        duration: 1000,
-        yoyo: true,
-        repeat: -1
-      });
-    } else if (cardState === 'purchased') {
-      // Add checkmark icon
-      const checkmark = this.scene.add.graphics();
-      checkmark.fillStyle(UITheme.SUCCESS, 1);
-      checkmark.beginPath();
-      checkmark.arc(width - 20, 20, 10, 0, Math.PI * 2);
-      checkmark.closePath();
-      checkmark.fillPath();
-      
-      // Draw checkmark
-      checkmark.lineStyle(2, UITheme.TEXT_PRIMARY, 1);
-      checkmark.beginPath();
-      checkmark.moveTo(width - 25, 20);
-      checkmark.lineTo(width - 20, 25);
-      checkmark.lineTo(width - 15, 15);
-      checkmark.closePath();
-      checkmark.strokePath();
-      
-      elements.push(checkmark);
-    }
+    // Add elements to container
+    const elements = [nodeBg, iconBg, nameText];
+    if (costText) elements.push(costText);
     
-    // Make the whole card interactive
-    cardBg.setInteractive({ useHandCursor: true })
+    container.add(elements);
+    
+    // Make interactive
+    nodeBg.setInteractive({ useHandCursor: true })
       .on('pointerover', () => {
-        // Highlight on hover
-        if (cardState !== 'purchased' && cardState !== 'locked') {
-          cardBg.setStrokeStyle(3, UITheme.ACCENT);
-        }
+        nodeBg.setStrokeStyle(3, UITheme.ACCENT);
+        this.showUpgradeTooltip(upgrade, container);
       })
       .on('pointerout', () => {
-        cardBg.setStrokeStyle(2, UITheme.ACCENT);
+        nodeBg.setStrokeStyle(2, UITheme.ACCENT);
+        this.hideUpgradeTooltip();
+      })
+      .on('pointerdown', () => {
+        if (nodeState === 'available') {
+          this.purchaseUpgrade(upgrade);
+        }
       });
-    
-    // Add all elements to container
-    container.add(elements);
     
     return container;
   }
   
-  private createResourceCostIcon(x: number, y: number, color: number): Phaser.GameObjects.Graphics {
-    const graphics = this.scene.add.graphics();
+  private tooltip: Phaser.GameObjects.Container | null = null;
+  
+  private showUpgradeTooltip(upgrade: ShipUpgrade, targetNode: Phaser.GameObjects.Container) {
+    // Hide any existing tooltip
+    this.hideUpgradeTooltip();
     
-    // Draw resource icon
-    graphics.fillStyle(color, 1);
-    graphics.lineStyle(1, 0xffffff, 0.8);
+    // Create tooltip container
+    this.tooltip = this.scene.add.container(0, 0);
+    this.container.add(this.tooltip);
     
-    // Draw circle
-    graphics.fillCircle(x, y, 8);
-    graphics.strokeCircle(x, y, 8);
+    // Build tooltip content
+    const tooltipWidth = 250;
+    const tooltipHeight = 150;
     
-    return graphics;
+    // Background
+    const bg = this.scene.add.rectangle(0, 0, tooltipWidth, tooltipHeight, UITheme.BACKGROUND_DARK, 0.95);
+    bg.setOrigin(0, 0);
+    bg.setStrokeStyle(2, UITheme.ACCENT);
+    
+    // Title
+    const title = this.uiManager.createText(upgrade.name, UIConstants.FONT_SIZE.MEDIUM);
+    title.setPosition(tooltipWidth / 2, 10);
+    title.setOrigin(0.5, 0);
+    
+    // Description
+    const description = this.uiManager.createText(upgrade.description, UIConstants.FONT_SIZE.SMALL);
+    description.setPosition(10, 40);
+    description.setOrigin(0, 0);
+    description.setWordWrapWidth(tooltipWidth - 20);
+    
+    // Cost
+    const costText = this.uiManager.createText(
+      `Cost: ${upgrade.cost.metal} Metal, ${upgrade.cost.crystal} Crystal`,
+      UIConstants.FONT_SIZE.SMALL
+    );
+    costText.setPosition(10, tooltipHeight - 30);
+    costText.setOrigin(0, 0);
+    
+    // Add all elements to tooltip
+    this.tooltip.add([bg, title, description, costText]);
+    
+    // Position tooltip next to the node
+    const targetBounds = targetNode.getBounds();
+    
+    // Position to the right if there's space, otherwise to the left
+    if (targetBounds.right + tooltipWidth < this.panelWidth - 50) {
+      this.tooltip.x = targetBounds.right + 10;
+    } else {
+      this.tooltip.x = targetBounds.left - tooltipWidth - 10;
+    }
+    
+    this.tooltip.y = targetBounds.y;
+    
+    // Make sure tooltip is fully visible
+    if (this.tooltip.y + tooltipHeight > this.panelHeight - 20) {
+      this.tooltip.y = this.panelHeight - tooltipHeight - 20;
+    }
+  }
+  
+  private hideUpgradeTooltip() {
+    if (this.tooltip) {
+      this.tooltip.destroy();
+      this.tooltip = null;
+    }
   }
   
   private purchaseUpgrade(upgrade: ShipUpgrade) {
@@ -339,17 +383,30 @@ export class UpgradesPanel {
       // Play success animation
       this.scene.cameras.main.flash(200, 255, 255, 255, false);
       
-      // Add success sound effect if available
-      // this.scene.sound.play('purchase');
-      
-      // Update the card to reflect purchased state
-      this.showTierUpgrades(this.currentTier);
+      // Re-render the upgrade tree
+      this.renderUpgradeTree();
     }
   }
   
   update() {
-    // Refresh the current tier display in case affordability has changed
-    this.showTierUpgrades(this.currentTier);
+    // Update the upgrade tree - re-render on change
+    const availableUpgrades = this.resourceManager.getAvailableUpgrades();
+    for (const upgrade of availableUpgrades) {
+      const button = this.upgradeButtons[upgrade.id];
+      if (button) {
+        // Update button state if needed
+        const canAfford = this.resourceManager.canAffordUpgrade(upgrade.id);
+        // Find cost text if it exists
+        const costText = button.getAll().find(obj => 
+          obj.type === 'Text' && 
+          (obj as Phaser.GameObjects.Text).text.includes('M:')
+        ) as Phaser.GameObjects.Text;
+        
+        if (costText) {
+          costText.setColor(canAfford ? '#ffffff' : '#ff0000');
+        }
+      }
+    }
   }
   
   show() {

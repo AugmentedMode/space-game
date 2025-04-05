@@ -16,6 +16,9 @@ export interface PlayerStats {
   autoCollectChance: number;
   miningSpeed: number;
   miningPower: number;
+  attackRange: number;
+  attackPower: number;
+  multiAttack: number;
 }
 
 export interface ShipUpgrade {
@@ -25,8 +28,10 @@ export interface ShipUpgrade {
   cost: Resources;
   effect: (resources: Resources, rates: ResourceRates, playerStats?: PlayerStats) => void;
   purchased: boolean;
-  tier: number;
-  requires?: string;
+  requires?: string[];
+  children?: string[];
+  treePosition?: {x: number, y: number};
+  icon?: string;
 }
 
 export class ResourceManager {
@@ -45,240 +50,134 @@ export class ResourceManager {
     collectionRadius: 0,
     autoCollectChance: 0,
     miningSpeed: 1,
-    miningPower: 1
+    miningPower: 1,
+    attackRange: 100,
+    attackPower: 1,
+    multiAttack: 1
   };
 
   private upgrades: ShipUpgrade[] = [
-    // Resource Collection - Tier 1
+    // Root upgrade - Ship Core
     {
-      id: 'mining_laser',
-      name: 'Basic Mining Laser',
-      description: 'Improves metal collection rate by 0.5/s',
-      cost: { metal: 10, crystal: 5 },
-      effect: (_resources, rates) => {
-        rates.metalRate += 0.5;
+      id: 'ship_core',
+      name: 'Ship Core',
+      description: 'Basic ship systems. Upgrade to improve attack capabilities.',
+      cost: { metal: 0, crystal: 0 },
+      effect: (_resources, _rates, _playerStats) => {
+        // Already applied by default
       },
-      purchased: false,
-      tier: 1
-    },
-    {
-      id: 'crystal_scanner',
-      name: 'Basic Crystal Scanner',
-      description: 'Improves crystal collection rate by 0.3/s',
-      cost: { metal: 15, crystal: 8 },
-      effect: (_resources, rates) => {
-        rates.crystalRate += 0.3;
-      },
-      purchased: false,
-      tier: 1
+      purchased: true, // Player starts with this
+      children: ['basic_attack_range', 'basic_multi_target'],
+      treePosition: {x: 0, y: 0},
+      icon: 'core'
     },
     
-    // Mining - Tier 1
+    // --- ATTACK RANGE BRANCH ---
     {
-      id: 'asteroid_drill',
-      name: 'Asteroid Drill',
-      description: 'Increases mining power by 1, breaking asteroids faster',
-      cost: { metal: 20, crystal: 10 },
+      id: 'basic_attack_range',
+      name: 'Basic Targeting',
+      description: 'Increases attack range by 50%. Attack asteroids from further away.',
+      cost: { metal: 15, crystal: 10 },
       effect: (_resources, _rates, playerStats) => {
-        if (playerStats) playerStats.miningPower += 1;
+        if (playerStats) playerStats.attackRange *= 1.5;
       },
       purchased: false,
-      tier: 1
+      requires: ['ship_core'],
+      children: ['improved_attack_range'],
+      treePosition: {x: -1, y: 1},
+      icon: 'targeting'
     },
     {
-      id: 'mining_efficiency',
-      name: 'Mining Efficiency',
-      description: 'Increases mining speed by 50%',
-      cost: { metal: 25, crystal: 15 },
+      id: 'improved_attack_range',
+      name: 'Advanced Targeting',
+      description: 'Doubles your attack range. Blast asteroids from even further away.',
+      cost: { metal: 40, crystal: 25 },
       effect: (_resources, _rates, playerStats) => {
-        if (playerStats) playerStats.miningSpeed += 0.5;
+        if (playerStats) playerStats.attackRange *= 2;
       },
       purchased: false,
-      tier: 1
+      requires: ['basic_attack_range'],
+      children: ['superior_attack_range'],
+      treePosition: {x: -1, y: 2},
+      icon: 'targeting2'
+    },
+    {
+      id: 'superior_attack_range',
+      name: 'Long-Range Targeting',
+      description: 'Triples your attack range. Destroy asteroids from across the sector.',
+      cost: { metal: 100, crystal: 75 },
+      effect: (_resources, _rates, playerStats) => {
+        if (playerStats) playerStats.attackRange *= 3;
+      },
+      purchased: false,
+      requires: ['improved_attack_range'],
+      children: [],
+      treePosition: {x: -1, y: 3},
+      icon: 'targeting3'
     },
     
-    // Ship Improvements - Tier 1
+    // --- MULTI-TARGET BRANCH ---
     {
-      id: 'engine_boost',
-      name: 'Engine Boost',
-      description: 'Increases ship speed by 50 units',
-      cost: { metal: 20, crystal: 10 },
+      id: 'basic_multi_target',
+      name: 'Dual Targeting',
+      description: 'Attack 2 asteroids simultaneously with split beam technology.',
+      cost: { metal: 20, crystal: 15 },
       effect: (_resources, _rates, playerStats) => {
-        if (playerStats) playerStats.shipSpeed += 50;
+        if (playerStats) playerStats.multiAttack = 2;
       },
       purchased: false,
-      tier: 1
+      requires: ['ship_core'],
+      children: ['improved_multi_target'],
+      treePosition: {x: 1, y: 1},
+      icon: 'multi1'
     },
     {
-      id: 'cargo_bay',
-      name: 'Expanded Cargo Bay',
-      description: 'Adds 20 metal and 10 crystal instantly',
-      cost: { metal: 25, crystal: 15 },
-      effect: (resources, _rates) => {
-        resources.metal += 20;
-        resources.crystal += 10;
+      id: 'improved_multi_target',
+      name: 'Quad Targeting',
+      description: 'Attack 4 asteroids simultaneously with advanced beam arrays.',
+      cost: { metal: 60, crystal: 45 },
+      effect: (_resources, _rates, playerStats) => {
+        if (playerStats) playerStats.multiAttack = 4;
       },
       purchased: false,
-      tier: 1
+      requires: ['basic_multi_target'],
+      children: ['superior_multi_target'],
+      treePosition: {x: 1, y: 2},
+      icon: 'multi2'
+    },
+    {
+      id: 'superior_multi_target',
+      name: 'Omni Targeting',
+      description: 'Attack 8 asteroids simultaneously with omni-directional beam technology.',
+      cost: { metal: 150, crystal: 120 },
+      effect: (_resources, _rates, playerStats) => {
+        if (playerStats) playerStats.multiAttack = 8;
+      },
+      purchased: false,
+      requires: ['improved_multi_target'],
+      children: [],
+      treePosition: {x: 1, y: 3},
+      icon: 'multi3'
     },
     
-    // Resource Collection - Tier 2
+    // --- BONUS COMBO UPGRADE ---
     {
-      id: 'advanced_mining',
-      name: 'Advanced Mining System',
-      description: 'Doubles your metal collection rate',
-      cost: { metal: 50, crystal: 30 },
-      effect: (_resources, rates) => {
-        rates.metalRate *= 2;
-      },
-      purchased: false,
-      tier: 2,
-      requires: 'mining_laser'
-    },
-    {
-      id: 'crystal_refinery',
-      name: 'Crystal Refinery',
-      description: 'Doubles your crystal collection rate',
-      cost: { metal: 75, crystal: 45 },
-      effect: (_resources, rates) => {
-        rates.crystalRate *= 2;
-      },
-      purchased: false,
-      tier: 2,
-      requires: 'crystal_scanner'
-    },
-    
-    // Mining - Tier 2
-    {
-      id: 'heavy_drill',
-      name: 'Heavy Duty Drill',
-      description: 'Doubles mining power, making asteroids break faster',
-      cost: { metal: 65, crystal: 35 },
-      effect: (_resources, _rates, playerStats) => {
-        if (playerStats) playerStats.miningPower *= 2;
-      },
-      purchased: false,
-      tier: 2,
-      requires: 'asteroid_drill'
-    },
-    {
-      id: 'beam_focus',
-      name: 'Mining Beam Focus',
-      description: 'Increases mining speed by 100%',
-      cost: { metal: 70, crystal: 40 },
-      effect: (_resources, _rates, playerStats) => {
-        if (playerStats) playerStats.miningSpeed += 1;
-      },
-      purchased: false,
-      tier: 2,
-      requires: 'mining_efficiency'
-    },
-    
-    // Ship Improvements - Tier 2
-    {
-      id: 'collection_field',
-      name: 'Magnetic Collection Field',
-      description: 'Resources within 50 units are automatically collected',
-      cost: { metal: 60, crystal: 40 },
-      effect: (_resources, _rates, playerStats) => {
-        if (playerStats) playerStats.collectionRadius = 50;
-      },
-      purchased: false,
-      tier: 2,
-      requires: 'engine_boost'
-    },
-    {
-      id: 'fusion_drive',
-      name: 'Fusion Drive',
-      description: 'Increases ship speed by another 100 units',
-      cost: { metal: 80, crystal: 50 },
-      effect: (_resources, _rates, playerStats) => {
-        if (playerStats) playerStats.shipSpeed += 100;
-      },
-      purchased: false,
-      tier: 2,
-      requires: 'engine_boost'
-    },
-    
-    // Resource Collection - Tier 3
-    {
-      id: 'quantum_mining',
-      name: 'Quantum Mining Array',
-      description: 'Triples metal collection rate',
-      cost: { metal: 200, crystal: 120 },
-      effect: (_resources, rates) => {
-        rates.metalRate *= 3;
-      },
-      purchased: false,
-      tier: 3,
-      requires: 'advanced_mining'
-    },
-    {
-      id: 'crystal_synthesizer',
-      name: 'Crystal Synthesizer',
-      description: 'Converts excess metal to crystal: +75% crystal rate',
-      cost: { metal: 150, crystal: 100 },
-      effect: (_resources, rates) => {
-        rates.crystalRate += rates.metalRate * 0.75;
-      },
-      purchased: false,
-      tier: 3,
-      requires: 'crystal_refinery'
-    },
-    
-    // Mining - Tier 3
-    {
-      id: 'asteroid_disruptor',
-      name: 'Asteroid Disruptor',
-      description: 'Mining instantly shatters small asteroids and triples mining power',
-      cost: { metal: 180, crystal: 150 },
-      effect: (_resources, _rates, playerStats) => {
-        if (playerStats) playerStats.miningPower *= 3;
-      },
-      purchased: false,
-      tier: 3,
-      requires: 'heavy_drill'
-    },
-    {
-      id: 'multi_beam',
-      name: 'Multi-Beam Mining System',
-      description: 'Fires multiple beams at once, tripling mining speed',
-      cost: { metal: 220, crystal: 180 },
-      effect: (_resources, _rates, playerStats) => {
-        if (playerStats) playerStats.miningSpeed *= 3;
-      },
-      purchased: false,
-      tier: 3,
-      requires: 'beam_focus'
-    },
-    
-    // Ship Improvements - Tier 3
-    {
-      id: 'auto_collector',
-      name: 'Automated Collection Drones',
-      description: '25% chance to automatically collect resources as they spawn',
-      cost: { metal: 180, crystal: 120 },
-      effect: (_resources, _rates, playerStats) => {
-        if (playerStats) playerStats.autoCollectChance = 0.25;
-      },
-      purchased: false,
-      tier: 3,
-      requires: 'collection_field'
-    },
-    {
-      id: 'warp_drive',
-      name: 'Warp Drive',
-      description: 'Doubles ship speed and triples collection radius',
-      cost: { metal: 250, crystal: 150 },
+      id: 'attack_mastery',
+      name: 'Attack Mastery',
+      description: 'Combines the benefits of range and multi-targeting. Doubles attack power too.',
+      cost: { metal: 300, crystal: 250 },
       effect: (_resources, _rates, playerStats) => {
         if (playerStats) {
-          playerStats.shipSpeed *= 2;
-          playerStats.collectionRadius *= 3;
+          playerStats.attackRange *= 1.5;
+          playerStats.multiAttack *= 2;
+          playerStats.attackPower *= 2;
         }
       },
       purchased: false,
-      tier: 3,
-      requires: 'fusion_drive'
+      requires: ['superior_attack_range', 'superior_multi_target'],
+      children: [],
+      treePosition: {x: 0, y: 4},
+      icon: 'mastery'
     }
   ];
 
@@ -298,11 +197,18 @@ export class ResourceManager {
       collectionRadius: 0, // No magnetic collection at start
       autoCollectChance: 0, // No auto-collection at start
       miningSpeed: 1, // Default mining speed
-      miningPower: 1 // Default mining power
+      miningPower: 1, // Default mining power
+      attackRange: 100, // Default attack range
+      attackPower: 1, // Default attack power
+      multiAttack: 1 // Default number of targets (only attack 1 at the start)
     };
 
     // Try to load saved game data
     this.loadGame();
+    
+    // Add starting resources for testing
+    this.resources.metal = 500;
+    this.resources.crystal = 500;
   }
 
   update(deltaTime: number): void {
@@ -416,7 +322,10 @@ export class ResourceManager {
         collectionRadius: 0,
         autoCollectChance: 0,
         miningSpeed: 1,
-        miningPower: 1
+        miningPower: 1,
+        attackRange: 100,
+        attackPower: 1,
+        multiAttack: 1
       };
       
       // Reset all upgrades to not purchased
@@ -457,15 +366,24 @@ export class ResourceManager {
     return [...this.upgrades];
   }
   
+  /**
+   * Returns all available upgrades that can be purchased based on requirements
+   */
   getAvailableUpgrades(): ShipUpgrade[] {
     return this.upgrades.filter(upgrade => {
-      // If it has a requirement, check if the required upgrade is purchased
-      if (upgrade.requires) {
-        const requiredUpgrade = this.upgrades.find(u => u.id === upgrade.requires);
-        if (!requiredUpgrade?.purchased) return false;
+      // If already purchased, it's not available
+      if (upgrade.purchased) return false;
+      
+      // If it has requirements, check if ALL required upgrades are purchased
+      if (upgrade.requires && upgrade.requires.length > 0) {
+        return upgrade.requires.every(requiredId => {
+          const requiredUpgrade = this.upgrades.find(u => u.id === requiredId);
+          return requiredUpgrade?.purchased === true;
+        });
       }
       
-      return !upgrade.purchased;
+      // No requirements, so it's available
+      return true;
     });
   }
 
@@ -473,10 +391,14 @@ export class ResourceManager {
     const upgrade = this.upgrades.find(u => u.id === upgradeId);
     if (!upgrade) return false;
     
-    // Check if required upgrade is purchased
-    if (upgrade.requires) {
-      const requiredUpgrade = this.upgrades.find(u => u.id === upgrade.requires);
-      if (!requiredUpgrade?.purchased) return false;
+    // Check if required upgrades are purchased
+    if (upgrade.requires && upgrade.requires.length > 0) {
+      const allRequirementsMet = upgrade.requires.every(requiredId => {
+        const requiredUpgrade = this.upgrades.find(u => u.id === requiredId);
+        return requiredUpgrade?.purchased === true;
+      });
+      
+      if (!allRequirementsMet) return false;
     }
     
     return this.resources.metal >= upgrade.cost.metal && 
@@ -492,10 +414,14 @@ export class ResourceManager {
     // Check if already purchased
     if (upgrade.purchased) return false;
     
-    // Check if required upgrade is purchased
-    if (upgrade.requires) {
-      const requiredUpgrade = this.upgrades.find(u => u.id === upgrade.requires);
-      if (!requiredUpgrade?.purchased) return false;
+    // Check if required upgrades are purchased
+    if (upgrade.requires && upgrade.requires.length > 0) {
+      const allRequirementsMet = upgrade.requires.every(requiredId => {
+        const requiredUpgrade = this.upgrades.find(u => u.id === requiredId);
+        return requiredUpgrade?.purchased === true;
+      });
+      
+      if (!allRequirementsMet) return false;
     }
     
     // Check if can afford
@@ -541,5 +467,19 @@ export class ResourceManager {
   
   upgradeMiningPower(amount: number): void {
     this.playerStats.miningPower += amount;
+  }
+
+  // Other upgrade helper methods
+  getRootUpgrades(): ShipUpgrade[] {
+    return this.upgrades.filter(u => !u.requires || u.requires.length === 0);
+  }
+
+  getChildUpgrades(parentId: string): ShipUpgrade[] {
+    const parent = this.upgrades.find(u => u.id === parentId);
+    if (!parent || !parent.children || parent.children.length === 0) {
+      return [];
+    }
+    
+    return this.upgrades.filter(u => parent.children?.includes(u.id));
   }
 } 
