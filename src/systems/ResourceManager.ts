@@ -19,6 +19,9 @@ export interface PlayerStats {
   attackRange: number;
   attackPower: number;
   multiAttack: number;
+  autopilotEnabled: boolean;
+  autopilotRange: number;
+  autopilotEfficiency: number;
 }
 
 export interface ShipUpgrade {
@@ -53,7 +56,10 @@ export class ResourceManager {
     miningPower: 1,
     attackRange: 150,
     attackPower: 1,
-    multiAttack: 1
+    multiAttack: 1,
+    autopilotEnabled: false,
+    autopilotRange: 0,
+    autopilotEfficiency: 0
   };
 
   private upgrades: ShipUpgrade[] = [
@@ -67,7 +73,7 @@ export class ResourceManager {
         // Already applied by default
       },
       purchased: true, // Player starts with this
-      children: ['basic_attack_range', 'basic_multi_target'],
+      children: ['basic_attack_range', 'basic_multi_target', 'basic_autopilot'],
       treePosition: {x: 0, y: 0},
       icon: 'core'
     },
@@ -160,6 +166,77 @@ export class ResourceManager {
       icon: 'multi3'
     },
     
+    // --- AUTOPILOT BRANCH ---
+    {
+      id: 'basic_autopilot',
+      name: 'Basic Autopilot',
+      description: 'Enables basic automatic navigation to nearby asteroids. Ship will automatically target and mine nearby asteroids.',
+      cost: { metal: 50, crystal: 30 },
+      effect: (_resources, _rates, playerStats) => {
+        if (playerStats) {
+          playerStats.autopilotEnabled = true;
+          playerStats.autopilotRange = 300;
+          playerStats.autopilotEfficiency = 0.5;
+        }
+      },
+      purchased: false,
+      requires: ['ship_core'],
+      children: ['improved_autopilot'],
+      treePosition: {x: 0, y: 1},
+      icon: 'autopilot1'
+    },
+    {
+      id: 'improved_autopilot',
+      name: 'Enhanced Autopilot',
+      description: 'Increases autopilot range and efficiency. Ship navigates more intelligently between asteroid clusters.',
+      cost: { metal: 120, crystal: 80 },
+      effect: (_resources, _rates, playerStats) => {
+        if (playerStats) {
+          playerStats.autopilotRange = 600;
+          playerStats.autopilotEfficiency = 0.8;
+        }
+      },
+      purchased: false,
+      requires: ['basic_autopilot'],
+      children: ['advanced_autopilot'],
+      treePosition: {x: 0, y: 2},
+      icon: 'autopilot2'
+    },
+    {
+      id: 'advanced_autopilot',
+      name: 'Advanced Autopilot',
+      description: 'Significantly enhances autopilot capabilities. Ship automatically navigates the entire asteroid field efficiently.',
+      cost: { metal: 250, crystal: 180 },
+      effect: (_resources, _rates, playerStats) => {
+        if (playerStats) {
+          playerStats.autopilotRange = 1200;
+          playerStats.autopilotEfficiency = 1.2;
+        }
+      },
+      purchased: false,
+      requires: ['improved_autopilot'],
+      children: ['autopilot_optimizer'],
+      treePosition: {x: 0, y: 3},
+      icon: 'autopilot3'
+    },
+    {
+      id: 'autopilot_optimizer',
+      name: 'Autopilot Optimizer',
+      description: 'Perfect efficiency autopilot with unlimited range. Your ship becomes a fully autonomous mining vessel.',
+      cost: { metal: 500, crystal: 400 },
+      effect: (_resources, _rates, playerStats) => {
+        if (playerStats) {
+          playerStats.autopilotRange = 3000;
+          playerStats.autopilotEfficiency = 2.0;
+        }
+      },
+      purchased: false,
+      requires: ['advanced_autopilot'],
+      children: [],
+      treePosition: {x: 0, y: 4},
+      icon: 'autopilot4'
+    },
+    
     // --- BONUS COMBO UPGRADE ---
     {
       id: 'attack_mastery',
@@ -176,7 +253,7 @@ export class ResourceManager {
       purchased: false,
       requires: ['superior_attack_range', 'superior_multi_target'],
       children: [],
-      treePosition: {x: 0, y: 4},
+      treePosition: {x: 0, y: 5},
       icon: 'mastery'
     }
   ];
@@ -200,7 +277,10 @@ export class ResourceManager {
       miningPower: 1, // Default mining power
       attackRange: 150, // Increased default attack range (was 100)
       attackPower: 1, // Default attack power
-      multiAttack: 1 // Default number of targets (only attack 1 at the start)
+      multiAttack: 1, // Default number of targets (only attack 1 at the start)
+      autopilotEnabled: false,
+      autopilotRange: 0,
+      autopilotEfficiency: 0
     };
 
     // Try to load saved game data
@@ -325,7 +405,10 @@ export class ResourceManager {
         miningPower: 1,
         attackRange: 150,
         attackPower: 1,
-        multiAttack: 1
+        multiAttack: 1,
+        autopilotEnabled: false,
+        autopilotRange: 0,
+        autopilotEfficiency: 0
       };
       
       // Reset all upgrades to not purchased

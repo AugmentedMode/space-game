@@ -2,12 +2,14 @@ import Phaser from 'phaser';
 import { ResourceManager } from '../systems/ResourceManager';
 import { StationUI } from '../ui/StationUI';
 import { PlanetDialog } from '../ui/PlanetDialog';
+import { AutopilotToggle } from '../ui/AutopilotToggle';
 import { Planet } from '../objects/Planet';
 
 export class UIScene extends Phaser.Scene {
   private resourceManager!: ResourceManager;
   private stationUI!: StationUI;
   private planetDialog!: PlanetDialog;
+  private autopilotToggle!: AutopilotToggle;
   private gameScene: Phaser.Scene | null = null;
   
   constructor() {
@@ -32,6 +34,14 @@ export class UIScene extends Phaser.Scene {
       this.stationUI = new StationUI(this, this.resourceManager, this);
       this.planetDialog = new PlanetDialog(this, this.resourceManager);
     }
+
+    // Create autopilot toggle button in the top-right corner
+    this.autopilotToggle = new AutopilotToggle(
+      this, 
+      this.resourceManager,
+      this.cameras.main.width - 130, 
+      10
+    );
     
     // Listen for events from game scene
     this.events.on('openStationMenu', () => {
@@ -58,6 +68,11 @@ export class UIScene extends Phaser.Scene {
           this.cameras.main.height !== this.game.canvas.height) {
         this.stationUI.resize(this.game.canvas.width, this.game.canvas.height);
       }
+    }
+
+    // Update autopilot toggle
+    if (this.autopilotToggle) {
+      this.autopilotToggle.update();
     }
   }
   
