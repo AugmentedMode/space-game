@@ -46,7 +46,7 @@ export class Planet extends Phaser.GameObjects.Container {
   
   private interactionCallback: (() => void) | null = null;
   
-  constructor(scene: Phaser.Scene, config: PlanetConfig) {
+  constructor(scene: Phaser.Scene, config: PlanetConfig) {  
     super(scene, config.position.x, config.position.y);
     
     this.id = config.id;

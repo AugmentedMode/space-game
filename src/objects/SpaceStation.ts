@@ -75,7 +75,7 @@ export class SpaceStation extends Phaser.Physics.Arcade.Sprite {
     this.interactText = this.scene.add.text(
       this.x, 
       this.y + 50, 
-      'Press X to open station menu\nPress O to enter station',
+      'Press X to open station menu\nPress O to enter station\nPress T to teleport to station',
       { fontSize: '20px', color: '#ffffff', backgroundColor: '#000000' }
     ).setOrigin(0.5);
     
