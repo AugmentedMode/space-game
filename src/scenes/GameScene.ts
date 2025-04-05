@@ -6,6 +6,7 @@ import { Asteroid, AsteroidType } from '../objects/Asteroid';
 import { PlayerController } from '../systems/PlayerController';
 import { MiningSystem } from '../systems/MiningSystem';
 import { TeleportSystem } from '../systems/TeleportSystem';
+import { PlanetarySystem } from '../systems/PlanetarySystem';
 import { GameConfig } from '../config/GameConfig';
 
 export class GameScene extends Phaser.Scene {
@@ -15,6 +16,7 @@ export class GameScene extends Phaser.Scene {
   private miningSystem!: MiningSystem;
   private teleportSystem!: TeleportSystem;
   private asteroidBeltManager!: AsteroidBeltManager;
+  private planetarySystem!: PlanetarySystem;
   
   // Game objects
   private ship!: Phaser.Physics.Arcade.Sprite;
@@ -63,6 +65,7 @@ export class GameScene extends Phaser.Scene {
     this.playerController.update(delta);
     this.miningSystem.update(delta);
     this.teleportSystem.update(delta);
+    this.planetarySystem.update(time, delta);
     
     // Update visuals
     this.updateBackgroundParallax();
@@ -278,6 +281,10 @@ export class GameScene extends Phaser.Scene {
       this.spaceStation,
       this.miningSystem
     );
+    
+    // Initialize planetary system
+    this.planetarySystem = new PlanetarySystem(this, this.resourceManager);
+    this.planetarySystem.initialize();
     
     // Create magnetic field visual (for collection radius upgrade)
     this.magnetField = this.add.graphics();

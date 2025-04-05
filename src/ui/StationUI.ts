@@ -285,6 +285,10 @@ export class StationUI {
     });
   }
   
+  isVisible(): boolean {
+    return this.visible;
+  }
+  
   destroy() {
     this.container.destroy();
   }

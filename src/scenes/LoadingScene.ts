@@ -48,5 +48,8 @@ export class LoadingScene extends Phaser.Scene {
     
     // Load space station asset
     this.load.image('space_station', 'src/assets/spacestation_v2.png');
+    
+    // Load particle for effects
+    this.load.image('particle', 'https://cdn.jsdelivr.net/gh/photonstorm/phaser3-examples@master/public/assets/particles/white.png');
   }
 } 

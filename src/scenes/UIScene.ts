@@ -1,10 +1,13 @@
 import Phaser from 'phaser';
 import { ResourceManager } from '../systems/ResourceManager';
 import { StationUI } from '../ui/StationUI';
+import { PlanetDialog } from '../ui/PlanetDialog';
+import { Planet } from '../objects/Planet';
 
 export class UIScene extends Phaser.Scene {
   private resourceManager!: ResourceManager;
   private stationUI!: StationUI;
+  private planetDialog!: PlanetDialog;
   private gameScene: Phaser.Scene | null = null;
   
   constructor() {
@@ -22,10 +25,12 @@ export class UIScene extends Phaser.Scene {
     // Create station UI with appropriate null check
     if (this.gameScene) {
       this.stationUI = new StationUI(this, this.resourceManager, this.gameScene);
+      this.planetDialog = new PlanetDialog(this, this.resourceManager);
     } else {
       console.error('Game scene not found, cannot create station UI properly');
       // Create with a fallback empty scene to avoid errors
       this.stationUI = new StationUI(this, this.resourceManager, this);
+      this.planetDialog = new PlanetDialog(this, this.resourceManager);
     }
     
     // Listen for events from game scene
@@ -33,10 +38,12 @@ export class UIScene extends Phaser.Scene {
       this.showUI();
     });
     
-    // Add keypress handler for ESC key to close the UI
+    // Add keypress handler for ESC key to close UI elements
     this.input.keyboard.on('keydown-ESC', () => {
-      if (this.stationUI) {
+      if (this.stationUI && this.stationUI.isVisible()) {
         this.hideUI();
+      } else if (this.planetDialog) {
+        this.planetDialog.hide();
       }
     });
   }
@@ -55,7 +62,7 @@ export class UIScene extends Phaser.Scene {
   }
   
   /**
-   * Show the UI
+   * Show the station UI
    * Public method called from other scenes
    */
   public showUI() {
@@ -65,12 +72,29 @@ export class UIScene extends Phaser.Scene {
   }
   
   /**
-   * Hide the UI
+   * Hide the station UI
    * Public method called from other scenes
    */
   public hideUI() {
     if (this.stationUI) {
       this.stationUI.hide();
+    }
+  }
+  
+  /**
+   * Show the planet dialog for a specific planet
+   * @param planet The planet to show details for
+   * @param callbacks Callback functions for planet actions
+   */
+  public showPlanetDialog(planet: Planet, callbacks: any) {
+    if (this.planetDialog) {
+      // Hide station UI if it's showing
+      if (this.stationUI && this.stationUI.isVisible()) {
+        this.stationUI.hide();
+      }
+      
+      // Show planet dialog
+      this.planetDialog.show(planet, callbacks);
     }
   }
 } 

@@ -24,7 +24,7 @@ export class SpaceStation extends Phaser.Physics.Arcade.Sprite {
     this.setupKeyboardInteraction();
 
     // For debugging - make interaction zone visible - UNCOMMENT TO DEBUG
-    this.scene.add.rectangle(this.x, this.y, 200, 200).setStrokeStyle(2, 0xff0000, 0.5);
+    // this.scene.add.rectangle(this.x, this.y, 200, 200).setStrokeStyle(2, 0xff0000, 0.5);
   }
   
   private setupInteractionZone() {
