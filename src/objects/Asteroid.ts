@@ -21,7 +21,8 @@ export class Asteroid extends Phaser.Physics.Arcade.Sprite {
     y: number, 
     type: AsteroidType = AsteroidType.METAL
   ) {
-    super(scene, x, y, 'asteroid');
+    // Use the first frame as the default texture
+    super(scene, x, y, 'asteroid_frame_0');
     
     this.asteroidType = type;
     this.maxHealth = type === AsteroidType.METAL ? 5 : 8; // Crystal asteroids are tougher
@@ -116,32 +117,116 @@ export class Asteroid extends Phaser.Physics.Arcade.Sprite {
     if (this.body) this.body.enable = false;
     this.healthBar.destroy();
     
-    // Play asteroid explosion animation
-    this.play('asteroid_explode');
-    
-    // Listen for animation completion
-    this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
-      // Create particle effect
-      this.createExplosionEffect();
+    try {
+      // Check if animation exists before trying to play it
+      if (!this.scene.anims.exists('asteroid_explode')) {
+        console.warn('Asteroid explosion animation not found, creating fallback');
+        this.createFallbackExplosion();
+        return;
+      }
       
-      // Remove after a delay
-      this.scene.time.delayedCall(1000, () => {
-        this.destroy();
+      // Play asteroid explosion animation
+      this.play('asteroid_explode');
+      
+      // Listen for animation completion
+      this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+        try {
+          // Create particle effect with fewer particles
+          this.createExplosionEffect();
+          
+          // Remove immediately
+          this.destroy();
+        } catch (error) {
+          console.error('Error in animation complete callback:', error);
+          this.destroy();
+        }
       });
+      
+      // Safety timeout in case animation doesn't complete
+      this.scene.time.delayedCall(1000, () => {
+        if (this.active) {
+          console.warn('Animation did not complete, forcing destroy');
+          this.destroy();
+        }
+      });
+    } catch (error) {
+      console.error('Error during explode sequence:', error);
+      this.destroy();
+    }
+  }
+  
+  // Fallback method if animation isn't available
+  private createFallbackExplosion() {
+    // Simple animation using tweens instead of sprite animation
+    this.scene.tweens.add({
+      targets: this,
+      alpha: 0,
+      scale: 1.5,
+      duration: 400,
+      onComplete: () => {
+        this.createExplosionEffect();
+        this.destroy();
+      }
     });
   }
   
   private createExplosionEffect() {
-    const particles = this.scene.add.particles(0, 0, this.asteroidType === AsteroidType.METAL ? 'metal' : 'crystal', {
-      speed: { min: 50, max: 150 },
-      scale: { start: 0.5, end: 0 },
-      lifespan: 1000,
-      blendMode: 'ADD',
-      emitting: false
-    });
+    // Further reduce particle count and complexity
+    const particleCount = 5; // Reduced even more
     
-    particles.setPosition(this.x, this.y);
-    particles.explode(20);
+    try {
+      // Sometimes the particle texture might not be available
+      // In that case, use a simple circle instead
+      let particleTexture = this.asteroidType === AsteroidType.METAL ? 'metal' : 'crystal';
+      
+      // Check if the texture exists before using it
+      if (!this.scene.textures.exists(particleTexture)) {
+        // Create temporary particles with graphics objects instead
+        for (let i = 0; i < particleCount; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Phaser.Math.Between(40, 100);
+          const distance = Phaser.Math.Between(20, 50);
+          
+          const x = this.x + Math.cos(angle) * distance;
+          const y = this.y + Math.sin(angle) * distance;
+          
+          const color = this.asteroidType === AsteroidType.METAL ? 0x8c8c8c : 0x9c5ab8;
+          const particle = this.scene.add.circle(x, y, 3, color, 0.8);
+          
+          // Animate the particle
+          this.scene.tweens.add({
+            targets: particle,
+            x: x + Math.cos(angle) * speed,
+            y: y + Math.sin(angle) * speed,
+            alpha: 0,
+            scale: 0.1,
+            duration: 600,
+            onComplete: () => particle.destroy()
+          });
+        }
+        return;
+      }
+      
+      // If texture exists, use the particle system
+      const particles = this.scene.add.particles(this.x, this.y, particleTexture, {
+        speed: { min: 40, max: 100 },
+        scale: { start: 0.3, end: 0 },
+        lifespan: 600, // Even shorter lifespan
+        blendMode: 'ADD',
+        emitting: false
+      });
+      
+      particles.explode(particleCount);
+      
+      // Clean up particles after a short time
+      this.scene.time.delayedCall(600, () => {
+        if (particles && particles.active) {
+          particles.destroy();
+        }
+      });
+    } catch (error) {
+      console.error('Error creating explosion effect:', error);
+    }
   }
   
   getResourceAmount(): number {

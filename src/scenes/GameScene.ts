@@ -35,19 +35,44 @@ export class GameScene extends Phaser.Scene {
       this.load.image('space_station', 'src/assets/space_station.png');
     }
     
-    // Load asteroid spritesheet
-    this.load.spritesheet('asteroid', 'src/assets/Asteroid 01 - Explode.png', {
-      frameWidth: 128,
-      frameHeight: 128
+    try {
+      // Load individual asteroid animation frames instead of spritesheet
+      for (let i = 0; i < 7; i++) {
+        const frameKey = `asteroid_frame_${i}`;
+        if (!this.textures.exists(frameKey)) {
+          this.load.image(frameKey, `src/assets/asteroid_frames/asteroid_frame_${i}.png`);
+          console.log(`Loading asteroid frame: ${frameKey}`);
+        }
+      }
+      
+      // Load resource images if needed
+      if (!this.textures.exists('metal')) {
+        this.load.image('metal', 'src/assets/metal.png');
+      }
+      if (!this.textures.exists('crystal')) {
+        this.load.image('crystal', 'src/assets/crystal.png');
+      }
+      
+      // Also load the original asteroid for the non-animated state
+      if (!this.textures.exists('asteroid')) {
+        this.load.image('asteroid', 'src/assets/asteroid_frames/asteroid_frame_0.png');
+      }
+    } catch (error) {
+      console.error('Error loading assets:', error);
+    }
+    
+    // Add loading progress indicator
+    this.load.on('progress', (value: number) => {
+      console.log(`Loading: ${Math.round(value * 100)}%`);
     });
     
-    // Load resource images if needed
-    if (!this.textures.exists('metal')) {
-      this.load.image('metal', 'src/assets/metal.png');
-    }
-    if (!this.textures.exists('crystal')) {
-      this.load.image('crystal', 'src/assets/crystal.png');
-    }
+    this.load.on('complete', () => {
+      console.log('All assets loaded');
+    });
+    
+    this.load.on('loaderror', (file: any) => {
+      console.error('Error loading asset:', file.src);
+    });
   }
 
   create() {
@@ -85,9 +110,13 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.ship, true);
     this.cameras.main.setZoom(1);
     
-    // Setup keyboard controls
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.miningKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    // Setup keyboard controls - fix for null check errors
+    if (this.input && this.input.keyboard) {
+      this.cursors = this.input.keyboard.createCursorKeys();
+      this.miningKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    } else {
+      console.error('Keyboard input not available');
+    }
     
     // Initialize asteroid belt manager
     this.asteroidBeltManager = new AsteroidBeltManager(this);
@@ -153,13 +182,30 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createAnimations() {
-    // Create asteroid explosion animation
-    this.anims.create({
-      key: 'asteroid_explode',
-      frames: this.anims.generateFrameNumbers('asteroid', { start: 0, end: 6 }),
-      frameRate: 10,
-      repeat: 0
-    });
+    try {
+      // Check if we already have the animation
+      if (this.anims.exists('asteroid_explode')) {
+        console.log('Animation already exists, skipping creation');
+        return;
+      }
+      
+      // Create asteroid explosion animation using individual frame keys
+      const frames = [];
+      for (let i = 0; i < 7; i++) {
+        frames.push({ key: `asteroid_frame_${i}` });
+      }
+      
+      this.anims.create({
+        key: 'asteroid_explode',
+        frames: frames,
+        frameRate: 10,
+        repeat: 0
+      });
+      
+      console.log('Successfully created asteroid_explode animation with individual frames');
+    } catch (error) {
+      console.error('Failed to create animation:', error);
+    }
   }
 
   private setupAsteroidBelts() {
@@ -265,6 +311,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleMiningInput() {
+    if (!this.miningKey) return;
+    
     // Start mining if spacebar is pressed and near an asteroid
     if (Phaser.Input.Keyboard.JustDown(this.miningKey) && this.nearbyAsteroid && !this.miningActive) {
       this.startMining(this.nearbyAsteroid);

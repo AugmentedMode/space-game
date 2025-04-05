@@ -35,10 +35,11 @@ export class UIScene extends Phaser.Scene {
     
     // Add keypress handler for ESC key to close the UI
     this.input.keyboard.on('keydown-ESC', () => {
-      this.hideUI();
+      if (this.stationUI) {
+        this.hideUI();
+      }
     });
   }
-  
   update(time: number, delta: number) {
     // Update station UI if it exists
     if (this.stationUI) {
