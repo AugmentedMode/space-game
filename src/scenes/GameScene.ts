@@ -319,11 +319,6 @@ export class GameScene extends Phaser.Scene {
         }
     });
     
-    // Debug - highlight all nearby asteroids
-    if (this.nearbyAsteroids.length > 0) {
-        console.log(`Found ${this.nearbyAsteroids.length} asteroids in range of ${attackRange}px`);
-    }
-    
     // Show mining indicator if there are asteroids in range
     this.updateNearbyAsteroidIndicator();
   }
@@ -335,61 +330,28 @@ export class GameScene extends Phaser.Scene {
     
     // Ensure we have a reasonable range value - use fallback if needed
     if (attackRange <= 0) {
-        console.warn('Attack range is zero or negative:', attackRange);
-        attackRange = 200; // Larger fallback value for better visibility
-        
-        // Try to fix the value in the resource manager
+        attackRange = 200;
         this.resourceManager.setPlayerStat('attackRange', attackRange);
     }
     
-    // Create attack range indicator if it doesn't exist
+    // For normal gameplay, we don't need to display the attack range indicator
+    // Only update internal state without visual elements
+    
+    // Create attack range indicator if it doesn't exist but keep it invisible
     if (!this.attackRangeIndicator) {
         this.attackRangeIndicator = this.add.graphics();
-        this.attackRangeIndicator.setDepth(100); // Make sure it's visible above other elements
     }
     
-    // Make sure attackRangeIndicator is not null before using it
-    if (!this.attackRangeIndicator) return;
-    
-    // Update the indicator with a more noticeable style
-    this.attackRangeIndicator.clear();
-    
-    // Add a filled circle with low opacity
-    this.attackRangeIndicator.fillStyle(0xff0000, 0.15);
-    this.attackRangeIndicator.fillCircle(this.ship.x, this.ship.y, attackRange);
-    
-    // Add a stroke with higher opacity
-    this.attackRangeIndicator.lineStyle(4, 0xff0000, 0.8);
-    this.attackRangeIndicator.strokeCircle(this.ship.x, this.ship.y, attackRange);
-    
-    // Add cardinal direction markers at the circle edge for better visibility
-    const directions = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI, 5*Math.PI/4, 3*Math.PI/2, 7*Math.PI/4];
-    directions.forEach(angle => {
-        const x = this.ship.x + Math.cos(angle) * attackRange;
-        const y = this.ship.y + Math.sin(angle) * attackRange;
-        
-        if (this.attackRangeIndicator) {
-            this.attackRangeIndicator.fillStyle(0xff0000, 0.9);
-            this.attackRangeIndicator.fillCircle(x, y, 6);
-        }
-    });
-    
-    // Add some debug text to show the range value
-    if (this.miningText && !this.miningActive) {
-        const debugText = `Attack Range: ${attackRange}px`;
-        this.miningText.setText(this.miningText.text + '\n' + debugText);
-    }
-    
-    // Print debug info to console at a reduced frequency
-    if (Math.random() < 0.01) { // Only log ~1% of the time to avoid console spam
-        console.log(`Attack range indicator updated: ${attackRange}px at (${this.ship.x}, ${this.ship.y})`);
+    // Clear any previous graphics (making it invisible)
+    if (this.attackRangeIndicator) {
+        this.attackRangeIndicator.clear();
     }
   }
 
   private updateNearbyAsteroidIndicator() {
     // Add some visual indicator if near an asteroid
     if (this.nearbyAsteroids.length > 0 && !this.miningActive) {
-        // Show a "press SPACE to mine" tooltip
+        // Show a "press SPACE to mine" tooltip without debug info
         const text = `Press SPACE to attack ${this.nearbyAsteroids.length} asteroid${this.nearbyAsteroids.length > 1 ? 's' : ''}`;
         
         // Add or update text (position it above the ship)
@@ -809,16 +771,10 @@ export class GameScene extends Phaser.Scene {
     // Ensure minimum stats are set properly
     this.resourceManager.ensureMinimumStats();
     
-    // FORCE set the attack range to a visible value for testing
+    // Set the attack range to a reasonable gameplay value
     this.resourceManager.setPlayerStat('attackRange', 200);
     
-    // Create attack range indicator with a more distinctive style
+    // Initialize the graphics object but don't show debug visuals
     this.attackRangeIndicator = this.add.graphics();
-    this.attackRangeIndicator.setDepth(100); // Ensure it's above other elements
-    
-    // Make an initial update to ensure it's visible
-    this.updateAttackRangeIndicator();
-    
-    console.log("Attack system initialized with range:", this.resourceManager.getPlayerStats().attackRange);
   }
 } 

@@ -270,7 +270,9 @@ export class Asteroid extends Phaser.Physics.Arcade.Sprite {
     if (!this.targetIndicator) return;
     
     this.targetIndicator.clear();
-    this.targetIndicator.lineStyle(2, 0xff0000, 0.8);
+    
+    // Use a more subtle targeting effect appropriate for gameplay
+    this.targetIndicator.lineStyle(2, 0x00ffff, 0.6); // Blue color matching beam
     
     // Draw a pulsing circle around the asteroid
     const time = this.scene.time.now;
@@ -279,22 +281,22 @@ export class Asteroid extends Phaser.Physics.Arcade.Sprite {
     // Draw target indicator circle
     this.targetIndicator.strokeCircle(this.x, this.y, 40 * scale);
     
-    // Add crosshair lines
-    const size = 10;
-    this.targetIndicator.beginPath();
-    // Top line
-    this.targetIndicator.moveTo(this.x, this.y - 40 * scale - size);
-    this.targetIndicator.lineTo(this.x, this.y - 40 * scale + size);
-    // Bottom line
-    this.targetIndicator.moveTo(this.x, this.y + 40 * scale - size);
-    this.targetIndicator.lineTo(this.x, this.y + 40 * scale + size);
-    // Left line
-    this.targetIndicator.moveTo(this.x - 40 * scale - size, this.y);
-    this.targetIndicator.lineTo(this.x - 40 * scale + size, this.y);
-    // Right line
-    this.targetIndicator.moveTo(this.x + 40 * scale - size, this.y);
-    this.targetIndicator.lineTo(this.x + 40 * scale + size, this.y);
-    this.targetIndicator.strokePath();
+    // Add small markers at the cardinal directions
+    const size = 5;
+    const distance = 40 * scale;
+    const directions = [0, Math.PI/2, Math.PI, Math.PI*3/2];
+    
+    directions.forEach(angle => {
+      if (this.targetIndicator) {
+        const x1 = this.x + Math.cos(angle) * (distance - size);
+        const y1 = this.y + Math.sin(angle) * (distance - size);
+        const x2 = this.x + Math.cos(angle) * (distance + size);
+        const y2 = this.y + Math.sin(angle) * (distance + size);
+        
+        this.targetIndicator.lineStyle(2, 0x00ffff, 0.8);
+        this.targetIndicator.lineBetween(x1, y1, x2, y2);
+      }
+    });
   }
 
   destroy(fromScene?: boolean) {
