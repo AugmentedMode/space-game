@@ -47,7 +47,6 @@ export class LoadingScene extends Phaser.Scene {
     this.load.image('background', 'https://cdn.jsdelivr.net/gh/photonstorm/phaser3-examples@master/public/assets/skies/space3.png');
     
     // Load space station asset
-    // For now, we'll use another image from the example assets as a placeholder
-    this.load.image('space_station', 'https://cdn.jsdelivr.net/gh/photonstorm/phaser3-examples@master/public/assets/sprites/platform.png');
+    this.load.image('space_station', 'src/assets/spacestation_v2.png');
   }
 } 

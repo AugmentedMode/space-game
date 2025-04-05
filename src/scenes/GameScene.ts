@@ -76,7 +76,7 @@ export class GameScene extends Phaser.Scene {
   private loadAssets() {
     // Load space station texture if not preloaded elsewhere
     if (!this.textures.exists('space_station')) {
-      this.load.image('space_station', 'src/assets/space_station.png');
+      this.load.image('space_station', 'src/assets/spacestation_v2.png');
     }
     
     try {
@@ -194,7 +194,7 @@ export class GameScene extends Phaser.Scene {
     
     // Create the space station
     this.spaceStation = new SpaceStation(this, stationX, stationY);
-    this.spaceStation.setScale(2); // Make it bigger if needed
+    // Scale is now handled in the SpaceStation class
     
     this.createStationEffects(stationX, stationY);
     

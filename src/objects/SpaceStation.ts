@@ -13,6 +13,10 @@ export class SpaceStation extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this, true); // true = static (non-moving)
     
+    // Adjust scale for the new image
+    this.setScale(0.5); // Reduce scale for the larger spacestation_v2.png
+    this.setDepth(10); // Ensure the station is drawn on top of background elements
+    
     // Set up interaction zone
     this.setupInteractionZone();
     
