@@ -309,8 +309,7 @@ export class MiningSystem {
         this.createFloatingText(`+${Math.floor(resourceAmount * 0.3)}`, 0x9c5ab8, '+crystal', 30);
       }
       
-      // Flash effect
-      this.scene.cameras.main.flash(100, 0, 0, 255, false);
+      // Flash effect removed
     } else {
       // Crystal asteroid: gives full crystal amount and 30% of that as metal
       this.resourceManager.addResource('crystal', resourceAmount);
@@ -322,8 +321,7 @@ export class MiningSystem {
         this.createFloatingText(`+${Math.floor(resourceAmount * 0.3)}`, 0xaaaaaa, '+metal', 30);
       }
       
-      // Flash effect
-      this.scene.cameras.main.flash(100, 255, 0, 0, false);
+      // Flash effect removed
     }
   }
   

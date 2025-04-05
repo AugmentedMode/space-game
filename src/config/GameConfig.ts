@@ -76,7 +76,7 @@ export const GameConfig = {
       id: 'rocky1',
       name: 'Mineralis',
       type: PlanetType.ROCKY,
-      size: 80,
+      size: 160,
       resourceYield: { metal: 2, crystal: 0.5 },
       position: { x: 2500, y: 3000 },
       color: 0xCC9966,
@@ -86,7 +86,7 @@ export const GameConfig = {
       id: 'icy1',
       name: 'Glacius',
       type: PlanetType.ICY,
-      size: 70,
+      size: 140,
       resourceYield: { metal: 0.5, crystal: 2 },
       position: { x: 8000, y: 2500 },
       color: 0xAADDFF,
@@ -96,7 +96,7 @@ export const GameConfig = {
       id: 'volcanic1',
       name: 'Ignius',
       type: PlanetType.VOLCANIC,
-      size: 90,
+      size: 180,
       resourceYield: { metal: 3, crystal: 1 },
       position: { x: 3000, y: 7000 },
       color: 0xFF6633,
@@ -106,7 +106,7 @@ export const GameConfig = {
       id: 'gaseous1',
       name: 'Nebulos',
       type: PlanetType.GASEOUS,
-      size: 120,
+      size: 240,
       resourceYield: { metal: 1, crystal: 3 },
       position: { x: 7000, y: 6000 },
       color: 0xFFCC33,
@@ -116,11 +116,21 @@ export const GameConfig = {
       id: 'oceanic1',
       name: 'Aquarius',
       type: PlanetType.OCEANIC,
-      size: 100,
+      size: 200,
       resourceYield: { metal: 1.5, crystal: 1.5 },
       position: { x: 1500 , y: 1550 },
       color: 0x3399FF,
       colonizationCost: { metal: 50, crystal: 50 }
+    },
+    {
+      id: 'terran1',
+      name: 'Terra Nova',
+      type: PlanetType.TERRAN,
+      size: 200,
+      resourceYield: { metal: 2, crystal: 2 },
+      position: { x: 1500, y: 1550 },
+      color: 0x33AA33, // Color used as fallback
+      colonizationCost: { metal: 70, crystal: 70 }
     }
   ] as PlanetConfig[]
 }; 

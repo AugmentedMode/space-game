@@ -253,6 +253,9 @@ export class GameScene extends Phaser.Scene {
     );
     this.ship.setCollideWorldBounds(true);
     
+    // Set the ship to have the highest z-index in the game
+    this.ship.setDepth(1000);
+    
     // Camera follows the ship
     this.cameras.main.startFollow(this.ship, true);
     this.cameras.main.setZoom(1);

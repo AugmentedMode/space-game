@@ -5,7 +5,8 @@ export enum PlanetType {
   ICY = 'icy',
   GASEOUS = 'gaseous',
   VOLCANIC = 'volcanic',
-  OCEANIC = 'oceanic'
+  OCEANIC = 'oceanic',
+  TERRAN = 'terran'
 }
 
 export interface PlanetResources {
@@ -25,7 +26,7 @@ export interface PlanetConfig {
 }
 
 export class Planet extends Phaser.GameObjects.Container {
-  private planetBody: Phaser.GameObjects.Ellipse;
+  private planetBody: Phaser.GameObjects.Sprite | Phaser.GameObjects.Ellipse;
   private colonyIndicator: Phaser.GameObjects.Ellipse | null = null;
   private nameText: Phaser.GameObjects.Text;
   private interactionZone: Phaser.GameObjects.Ellipse;
@@ -57,12 +58,20 @@ export class Planet extends Phaser.GameObjects.Container {
     // Set interaction radius based on planet size
     this.interactionRadius = config.size * 2; // Twice the planet size
     
-    // Create planet body
-    this.planetBody = scene.add.ellipse(0, 0, config.size, config.size, config.color);
-    this.add(this.planetBody);
+    // Create planet body - check if it's a Terran type to use image
+    if (this.type === PlanetType.TERRAN) {
+      // Make sure this texture is loaded in the LoadingScene
+      this.planetBody = scene.add.sprite(0, 0, 'Terran');
+      this.planetBody.setDisplaySize(config.size, config.size);
+    } else {
+      // Create ellipse for other planet types
+      this.planetBody = scene.add.ellipse(0, 0, config.size, config.size, config.color);
+      
+      // Add visual effects based on planet type
+      this.addPlanetTypeEffects(config);
+    }
     
-    // Add visual effects based on planet type
-    this.addPlanetTypeEffects(config);
+    this.add(this.planetBody);
     
     // Add name text
     this.nameText = scene.add.text(0, -(config.size / 2 + 20), config.name, {

@@ -214,20 +214,23 @@ export class PlanetDialog {
       case PlanetType.OCEANIC:
         color = 0x3399FF;
         break;
+      case PlanetType.TERRAN:
+        color = 0x33AA33;
+        break;
     }
     
-    // Create planet orb
-    const planetOrb = this.scene.add.circle(0, 0, 40, color);
+    // Create planet orb - increased from 40 to 60
+    const planetOrb = this.scene.add.circle(0, 0, 60, color);
     container.add(planetOrb);
     
     // Add type-specific details
     switch (planet.type) {
       case PlanetType.ROCKY:
-        // Add craters
+        // Add craters - updated sizes
         for (let i = 0; i < 4; i++) {
           const angle = Math.random() * Math.PI * 2;
-          const distance = Math.random() * 25;
-          const size = Math.random() * 8 + 4;
+          const distance = Math.random() * 40; // Increased from 25
+          const size = Math.random() * 12 + 6; // Increased from 8+4
           const crater = this.scene.add.circle(
             Math.cos(angle) * distance,
             Math.sin(angle) * distance,
@@ -239,18 +242,18 @@ export class PlanetDialog {
         break;
         
       case PlanetType.GASEOUS:
-        // Add ring
-        const ring = this.scene.add.ellipse(0, 0, 90, 20, color + 0x111111, 0.6);
+        // Add ring - updated sizes
+        const ring = this.scene.add.ellipse(0, 0, 135, 30, color + 0x111111, 0.6); // Increased from 90x20
         container.add(ring);
         container.sendToBack(ring);
         break;
         
       case PlanetType.VOLCANIC:
-        // Add lava spots
+        // Add lava spots - updated sizes
         for (let i = 0; i < 3; i++) {
           const angle = Math.random() * Math.PI * 2;
-          const distance = Math.random() * 20;
-          const size = Math.random() * 6 + 3;
+          const distance = Math.random() * 30; // Increased from 20
+          const size = Math.random() * 9 + 4.5; // Increased from 6+3
           const spot = this.scene.add.circle(
             Math.cos(angle) * distance,
             Math.sin(angle) * distance,
@@ -262,11 +265,11 @@ export class PlanetDialog {
         break;
         
       case PlanetType.OCEANIC:
-        // Add land masses
+        // Add land masses - updated sizes
         for (let i = 0; i < 2; i++) {
           const angle = Math.random() * Math.PI * 2;
-          const distance = Math.random() * 20;
-          const size = Math.random() * 10 + 5;
+          const distance = Math.random() * 30; // Increased from 20
+          const size = Math.random() * 15 + 7.5; // Increased from 10+5
           const land = this.scene.add.circle(
             Math.cos(angle) * distance,
             Math.sin(angle) * distance,
@@ -276,11 +279,19 @@ export class PlanetDialog {
           container.add(land);
         }
         break;
+        
+      case PlanetType.TERRAN:
+        // For Terran planets, use the sprite instead of drawing a circle
+        container.remove(planetOrb);
+        const terranImage = this.scene.add.sprite(0, 0, 'Terran');
+        terranImage.setDisplaySize(120, 120); // Increased from 80x80
+        container.add(terranImage);
+        break;
     }
     
     // Add colony indicator if colonized
     if (planet.isColonized) {
-      const colonyRing = this.scene.add.circle(0, 0, 48, 0x00ffff, 0.3);
+      const colonyRing = this.scene.add.circle(0, 0, 72, 0x00ffff, 0.3); // Increased from 48
       container.add(colonyRing);
       container.sendToBack(colonyRing);
     }
@@ -471,6 +482,8 @@ export class PlanetDialog {
         return 'Volcanic';
       case PlanetType.OCEANIC:
         return 'Oceanic';
+      case PlanetType.TERRAN:
+        return 'Terran';
       default:
         return 'Unknown';
     }
