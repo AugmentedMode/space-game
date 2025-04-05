@@ -4,6 +4,7 @@ export class SpaceStation extends Phaser.Physics.Arcade.Sprite {
   private interactZone!: Phaser.GameObjects.Zone;
   private interactText!: Phaser.GameObjects.Text;
   private xKey!: Phaser.Input.Keyboard.Key;
+  private oKey!: Phaser.Input.Keyboard.Key; // New key for entering the station
   private playerInRange: boolean = false;
   
   constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -36,7 +37,7 @@ export class SpaceStation extends Phaser.Physics.Arcade.Sprite {
     this.interactText = this.scene.add.text(
       this.x, 
       this.y + 50, 
-      'Press X to open station menu',
+      'Press X to open station menu\nPress O to enter station',
       { fontSize: '20px', color: '#ffffff', backgroundColor: '#000000' }
     ).setOrigin(0.5);
     // Make text always visible for debugging
@@ -74,7 +75,10 @@ export class SpaceStation extends Phaser.Physics.Arcade.Sprite {
     // Set up X key for opening station menu
     this.xKey = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
     
-    // Check for X key press directly in update method
+    // Set up O key for entering the station
+    this.oKey = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.O);
+    
+    // Check for key presses directly in update method
     this.scene.events.on('update', this.checkKeyPress, this);
     
     console.log('Keyboard interaction set up for Space Station');
@@ -85,6 +89,17 @@ export class SpaceStation extends Phaser.Physics.Arcade.Sprite {
     if (this.playerInRange && Phaser.Input.Keyboard.JustDown(this.xKey)) {
       console.log('X key pressed in update loop');
       this.openStationUI();
+      
+      // Prevent the event from being processed further
+      if (this.scene && this.scene.input && this.scene.input.keyboard) {
+        this.scene.input.keyboard.resetKeys();
+      }
+    }
+    
+    // Check for O key to enter the station
+    if (this.playerInRange && Phaser.Input.Keyboard.JustDown(this.oKey)) {
+      console.log('O key pressed - entering station');
+      this.enterStation();
       
       // Prevent the event from being processed further
       if (this.scene && this.scene.input && this.scene.input.keyboard) {
@@ -105,6 +120,13 @@ export class SpaceStation extends Phaser.Physics.Arcade.Sprite {
     } else {
       console.error('UI scene or showUI method not found', uiScene);
     }
+  }
+  
+  private enterStation() {
+    console.log('Entering space station interior');
+    
+    // Start the transition loading scene
+    this.scene.scene.start('loading-transition', { nextScene: 'station-interior' });
   }
   
   public onInteract(callback: Function) {

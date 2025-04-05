@@ -422,4 +422,9 @@ export class GameScene extends Phaser.Scene {
       }
     });
   }
+
+  // Add a getter to expose the resource manager to other scenes
+  public getResourceManager(): ResourceManager {
+    return this.resourceManager;
+  }
 } 

@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { LoadingScene } from './scenes/LoadingScene';
 import { GameScene } from './scenes/GameScene';
 import { UIScene } from './scenes/UIScene';
+import { StationInteriorScene } from './scenes/StationInteriorScene';
+import { TransitionLoadingScene } from './scenes/TransitionLoadingScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -15,7 +17,13 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false
     }
   },
-  scene: [LoadingScene, GameScene, UIScene],
+  scene: [
+    LoadingScene, 
+    GameScene, 
+    UIScene, 
+    StationInteriorScene, 
+    TransitionLoadingScene
+  ],
   backgroundColor: '#000000',
   render: {
     pixelArt: true
