@@ -174,7 +174,7 @@ export class ResourceManager {
       cost: { metal: 50, crystal: 30 },
       effect: (_resources, _rates, playerStats) => {
         if (playerStats) {
-          playerStats.autopilotEnabled = true;
+          // Don't automatically enable autopilot, just make it available
           playerStats.autopilotRange = 300;
           playerStats.autopilotEfficiency = 0.5;
         }
@@ -352,6 +352,9 @@ export class ResourceManager {
         // Restore player stats
         if (parsedData.playerStats) {
           this.playerStats = parsedData.playerStats;
+          
+          // Always ensure autopilot is disabled on game load
+          this.playerStats.autopilotEnabled = false;
         }
         
         // Restore upgrades purchased status
@@ -368,6 +371,9 @@ export class ResourceManager {
               }
             }
           });
+          
+          // Ensure autopilot is disabled even after upgrade effects
+          this.playerStats.autopilotEnabled = false;
         }
         
         console.log('Game loaded successfully');
@@ -523,13 +529,17 @@ export class ResourceManager {
     return true;
   }
 
-  setPlayerStat(statName: keyof PlayerStats, value: number): void {
+  setPlayerStat(statName: keyof PlayerStats, value: number | boolean): void {
+    // Special handling for autopilotEnabled - ensure it's a boolean
+    if (statName === 'autopilotEnabled') {
+      this.playerStats[statName] = Boolean(value);
+    }
     // Ensure attack range is always positive
-    if (statName === 'attackRange' && value <= 0) {
+    else if (statName === 'attackRange' && typeof value === 'number' && value <= 0) {
       console.warn('Attempted to set attackRange to non-positive value:', value);
       this.playerStats[statName] = 100; // Minimum attack range
     } else {
-      this.playerStats[statName] = value;
+      this.playerStats[statName] = value as any;
     }
   }
 

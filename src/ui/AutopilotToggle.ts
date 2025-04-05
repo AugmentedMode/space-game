@@ -91,8 +91,8 @@ export class AutopilotToggle {
       return;
     }
     
-    // Toggle state - convert boolean to number (1 for true, 0 for false)
-    this.resourceManager.setPlayerStat('autopilotEnabled', !currentState ? 1 : 0);
+    // Toggle state - use boolean value
+    this.resourceManager.setPlayerStat('autopilotEnabled', !currentState);
     
     // Update visuals
     this.updateToggleVisuals();
