@@ -1,0 +1,22 @@
+{
+  "name": "idle-game",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "2D idle game where you collect resources and upgrade your ship",
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "typescript": "^5.2.2",
+    "vite": "^5.2.6"
+  },
+  "dependencies": {
+    "phaser": "^3.60.0"
+  }
+}
